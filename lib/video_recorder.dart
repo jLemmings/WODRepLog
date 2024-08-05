@@ -1,97 +1,122 @@
-import 'package:camera/camera.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:camera/camera.dart';
+import 'package:gallery_saver/gallery_saver.dart';
+import 'package:path/path.dart' as path;
 
 class VideoRecorder extends StatefulWidget {
-  final CameraDescription camera;
-
-  const VideoRecorder({super.key, required this.camera});
+  const VideoRecorder({super.key});
 
   @override
   _VideoRecorderState createState() => _VideoRecorderState();
 }
 
 class _VideoRecorderState extends State<VideoRecorder> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
-  bool isRecording = false;
+  CameraController? _controller;
+  bool _isRecording = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = CameraController(
-      widget.camera,
-      ResolutionPreset.high,
-    );
-    _initializeControllerFuture = _controller.initialize();
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    final camera = cameras.first;
+    _controller = CameraController(camera, ResolutionPreset.high);
+    await _controller!.initialize();
+    setState(() {});
+  }
+
+  Future<void> _startRecording() async {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return;
+    }
+
+    try {
+      await _controller!.startVideoRecording();
+      setState(() {
+        _isRecording = true;
+      });
+    } catch (e) {
+      print('Error starting video recording: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        !_isRecording) {
+      return;
+    }
+
+    try {
+      // Stop recording and get the video file
+      final XFile videoFile = await _controller!.stopVideoRecording();
+      setState(() {
+        _isRecording = false;
+      });
+
+      final filePath = videoFile.path;
+      final file = File(filePath);
+
+      // Check if the file exists
+      if (!await file.exists()) {
+        print('File does not exist at path: $filePath');
+        return;
+      }
+
+      // Check and validate the file type
+
+      final newFilePath = '${path.withoutExtension(filePath)}.mp4';
+      await file.rename(newFilePath);
+
+      print('debug: $file');
+      // Save video to gallery
+      final bool? success = await GallerySaver.saveVideo(newFilePath);
+      if (success == true) {
+        print('Video saved to gallery');
+      } else {
+        print('Failed to save video to gallery');
+      }
+    } catch (e) {
+      print('Error stopping video recording: $e');
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
-  }
-
-  Future<String> _startVideoRecording() async {
-    if (!_controller.value.isInitialized) {
-      return "Error: Camera is not initialized.";
-    }
-
-    final directory = await getApplicationDocumentsDirectory();
-    final videoPath = '${directory.path}/${DateTime.now()}.mp4';
-
-    try {
-      await _controller.startVideoRecording();
-      return videoPath;
-    } on CameraException catch (e) {
-      print(e);
-      return "Error: Could not start video recording.";
-    }
-  }
-
-  Future<void> _stopVideoRecording() async {
-    if (!_controller.value.isRecordingVideo) {
-      return;
-    }
-
-    try {
-      await _controller.stopVideoRecording();
-    } on CameraException catch (e) {
-      print(e);
-      return;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Video Recorder')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Video Recorder')),
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return CameraPreview(_controller);
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(isRecording ? Icons.stop : Icons.videocam),
-        onPressed: () async {
-          if (isRecording) {
-            await _stopVideoRecording();
-            setState(() {
-              isRecording = false;
-            });
-          } else {
-            final videoPath = await _startVideoRecording();
-            setState(() {
-              isRecording = true;
-            });
-            print('Video recorded to: $videoPath');
-          }
-        },
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: _controller!.value.aspectRatio,
+              child: CameraPreview(_controller!),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isRecording ? _stopRecording : _startRecording,
+              child: Text(_isRecording ? 'Stop Recording' : 'Start Recording'),
+            ),
+          ],
+        ),
       ),
     );
   }

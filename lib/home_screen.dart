@@ -20,7 +20,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => VideoRecorder(camera: camera)),
+                  MaterialPageRoute(builder: (context) => const VideoRecorder()),
                 );
               },
               child: const Text('Go to Video Recorder'),

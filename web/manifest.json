@@ -1,6 +1,6 @@
 {
-    "name": "wodvalid",
-    "short_name": "wodvalid",
+    "name": "wodreplog",
+    "short_name": "wodreplog",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
