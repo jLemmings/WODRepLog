@@ -44,7 +44,7 @@ jobs:
         run: flutter doctor --verbose
 
       - name: Build release app bundle
-        run: flutter build appbundle
+        run: flutter build appbundle --debug
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
