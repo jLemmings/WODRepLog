@@ -15,10 +15,10 @@ class TimerWidget extends StatefulWidget {
   });
 
   @override
-  _TimerWidgetState createState() => _TimerWidgetState();
+  TimerWidgetState createState() => TimerWidgetState();
 }
 
-class _TimerWidgetState extends State<TimerWidget>
+class TimerWidgetState extends State<TimerWidget>
     with SingleTickerProviderStateMixin {
   late int _currentRound;
   late int _currentTime;
@@ -26,8 +26,6 @@ class _TimerWidgetState extends State<TimerWidget>
   Timer? _timer;
   late AnimationController _controller;
   late Animation<double> _animation;
-  bool _isRunning = false;
-  bool _isPaused = false;
 
   @override
   void initState() {
@@ -44,10 +42,7 @@ class _TimerWidgetState extends State<TimerWidget>
   }
 
   void startTimer() {
-    setState(() {
-      _isRunning = true;
-      _isPaused = false;
-    });
+    setState(() {});
 
     _controller.reset();
     _controller.duration = Duration(seconds: widget.duration);
@@ -64,7 +59,6 @@ class _TimerWidgetState extends State<TimerWidget>
           _currentRound++;
         } else {
           _timer?.cancel();
-          _isRunning = false;
           _controller.stop();
         }
       });
@@ -73,7 +67,6 @@ class _TimerWidgetState extends State<TimerWidget>
 
   void pauseTimer() {
     setState(() {
-      _isPaused = true;
       _timer?.cancel();
       _controller.stop();
     });
@@ -82,8 +75,6 @@ class _TimerWidgetState extends State<TimerWidget>
   void resetTimer() {
     setState(() {
       _timer?.cancel();
-      _isRunning = false;
-      _isPaused = false;
       _remainingTime = widget.duration;
       _currentTime = _remainingTime;
       _controller.reset();

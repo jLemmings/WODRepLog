@@ -5,10 +5,10 @@ class TabataSettings extends StatefulWidget {
   const TabataSettings({super.key});
 
   @override
-  _TabataSettingsState createState() => _TabataSettingsState();
+  TabataSettingsState createState() => TabataSettingsState();
 }
 
-class _TabataSettingsState extends State<TabataSettings> {
+class TabataSettingsState extends State<TabataSettings> {
   final _formKey = GlobalKey<FormState>();
   late int _workInterval;
   late int _restInterval;
@@ -53,7 +53,8 @@ class _TabataSettingsState extends State<TabataSettings> {
                 },
               ),
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Number of Rounds'),
+                decoration:
+                    const InputDecoration(labelText: 'Number of Rounds'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {

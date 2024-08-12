@@ -5,10 +5,10 @@ class AmrapSettings extends StatefulWidget {
   const AmrapSettings({super.key});
 
   @override
-  _AmrapSettingsState createState() => _AmrapSettingsState();
+  AmrapSettingsState createState() => AmrapSettingsState();
 }
 
-class _AmrapSettingsState extends State<AmrapSettings> {
+class AmrapSettingsState extends State<AmrapSettings> {
   final _formKey = GlobalKey<FormState>();
   late int _duration;
 
@@ -23,7 +23,8 @@ class _AmrapSettingsState extends State<AmrapSettings> {
           child: Column(
             children: <Widget>[
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Duration (minutes)'),
+                decoration:
+                    const InputDecoration(labelText: 'Duration (minutes)'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
