@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:path/path.dart' as path;
 import 'package:gallery_saver/gallery_saver.dart';
@@ -14,15 +16,37 @@ class VideoRecorder extends StatefulWidget {
 class _VideoRecorderState extends State<VideoRecorder> {
   late CameraController _controller;
   bool _isRecording = false;
+  bool _showTimer = false;
   String competitionName = '';
   String workoutName = '';
-
-  final List<Map<String, dynamic>> _textFields = [];
+  Timer? _timer;
+  int _elapsedSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+
+    // Force landscape orientation and hide system UI when the camera view is active
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _timer?.cancel();
+
+    // Reset orientation and show system UI when leaving the camera view
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
   }
 
   Future<void> _initializeCamera() async {
@@ -38,27 +62,17 @@ class _VideoRecorderState extends State<VideoRecorder> {
     }
   }
 
-  void _addTextField() {
-    setState(() {
-      _textFields.add({
-        'text': '',
-        'top': 100.0,
-        'left': 100.0,
+  void _startTimer() {
+    _elapsedSeconds = 0;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _elapsedSeconds++;
       });
     });
   }
 
-  void _updateTextField(int index, String text) {
-    setState(() {
-      _textFields[index]['text'] = text;
-    });
-  }
-
-  void _updatePosition(int index, Offset position) {
-    setState(() {
-      _textFields[index]['top'] = position.dy;
-      _textFields[index]['left'] = position.dx;
-    });
+  void _stopTimer() {
+    _timer?.cancel();
   }
 
   Future<void> _startRecording() async {
@@ -69,6 +83,9 @@ class _VideoRecorderState extends State<VideoRecorder> {
       setState(() {
         _isRecording = true;
       });
+      if (_showTimer) {
+        _startTimer(); // Start the timer when recording starts
+      }
     } catch (e) {
       _showErrorSnackBar('Error starting video recording: $e');
     }
@@ -82,6 +99,7 @@ class _VideoRecorderState extends State<VideoRecorder> {
       setState(() {
         _isRecording = false;
       });
+      _stopTimer(); // Stop the timer when recording stops
 
       final newFilePath = '${path.withoutExtension(videoFile.path)}.mp4';
       await File(videoFile.path).rename(newFilePath);
@@ -158,26 +176,34 @@ class _VideoRecorderState extends State<VideoRecorder> {
     );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_controller.value.isInitialized) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Video Recorder')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Video Recorder')),
       body: Stack(
         children: [
-          CameraPreview(_controller),
+          Center(
+            // Center the FittedBox horizontally
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller.value.previewSize!.width,
+                height: _controller.value.previewSize!.height,
+                child: CameraPreview(_controller),
+              ),
+            ),
+          ),
           Positioned(
             top: 20,
             left: 20,
@@ -191,7 +217,7 @@ class _VideoRecorderState extends State<VideoRecorder> {
             ),
           ),
           Positioned(
-            top: 60,
+            bottom: 20,
             left: 20,
             child: Text(
               workoutName,
@@ -201,44 +227,52 @@ class _VideoRecorderState extends State<VideoRecorder> {
               ),
             ),
           ),
-          ..._textFields.map((textField) {
-            int index = _textFields.indexOf(textField);
-            return Positioned(
-              top: textField['top'],
-              left: textField['left'],
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  _updatePosition(index, details.localPosition);
-                },
-                child: SizedBox(
-                  width: 200,
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Enter text',
-                    ),
-                    onChanged: (text) {
-                      _updateTextField(index, text);
-                    },
-                    controller: TextEditingController(text: textField['text']),
-                  ),
+          if (_isRecording &&
+              _showTimer) // Show the timer only when recording and if it's enabled
+            Positioned(
+              top: 20,
+              right: 20,
+              child: Text(
+                _formatTime(_elapsedSeconds),
+                style: const TextStyle(
+                  fontSize: 24,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            );
-          }),
+            ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+      floatingActionButton: Stack(
         children: [
-          FloatingActionButton(
-            onPressed: _showInputDialog,
-            child: const Icon(Icons.text_fields),
+          Positioned(
+            bottom: 16,
+            left: MediaQuery.of(context).size.width / 2 -
+                28, // Center the record button
+            child: FloatingActionButton(
+              onPressed: _isRecording ? _stopRecording : _startRecording,
+              child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+            ),
           ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            onPressed: _addTextField,
-            child: const Icon(Icons.add),
+          Positioned(
+            bottom: 90,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _showTimer = !_showTimer;
+                });
+              },
+              child: const Icon(Icons.timer),
+            ),
+          ),
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              onPressed: _showInputDialog,
+              child: const Icon(Icons.edit),
+            ),
           ),
         ],
       ),
