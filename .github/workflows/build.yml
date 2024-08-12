@@ -10,7 +10,7 @@ jobs:
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 21.0
-      FLUTTER_VERSION: 3.19.0
+      FLUTTER_VERSION: 3.22.3
 
     steps:
       # Checkout repository codebase
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: "temurin" # See 'Supported distributions' for available options
-          java-version: "21"
+          java-version: ${{ env.JAVA_VERSION }}
 
       # Setup Java in the VM
       - name: Install Flutter
