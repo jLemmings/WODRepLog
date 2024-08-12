@@ -27,6 +27,8 @@ flutter run
 - bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
 
 
+https://medium.com/lodgify-technology-blog/deploy-your-flutter-app-to-google-play-with-github-actions-f13a11c4492e
+https://tbrgroup.software/flutter-build-and-deploy-android-apps-using-github-actions/
 
 # Colours
 Primary:
