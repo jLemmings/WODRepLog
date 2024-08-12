@@ -7,14 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # Setup env variables that will be used throughout the workflow
-      JAVA_VERSION: 12.0
-      FLUTTER_VERSION: 3.13.1
-      AAB_PATH: build/app/outputs/bundle/release/app-release.aab
-      KEYSTORE_PATH: android/upload-keystore.jks
-      KEY_PROPS_PATH: android/key.properties
-      SERVICE_ACCOUNT_PATH: store_credentials.json
 
     steps:
       # Checkout repository codebase
@@ -26,7 +18,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           # Define which stable flutter version should be used
-          flutter-version: $FLUTTER_VERSION
+          flutter-version: 3.13.1
           channel: "stable"
 
       # Run flutter commands
