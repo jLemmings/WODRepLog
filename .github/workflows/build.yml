@@ -1,0 +1,67 @@
+name: Build
+
+on:
+  push:
+    branches: ["master"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Setup env variables that will be used throughout the workflow
+      JAVA_VERSION: 12.0
+      FLUTTER_VERSION: 3.13.1
+      AAB_PATH: build/app/outputs/bundle/release/app-release.aab
+      KEYSTORE_PATH: android/upload-keystore.jks
+      KEY_PROPS_PATH: android/key.properties
+      SERVICE_ACCOUNT_PATH: store_credentials.json
+
+    steps:
+      # Checkout repository codebase
+      - name: Checkout the code
+        uses: actions/checkout@v3
+
+      # Setup Java in the VM
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Define which stable flutter version should be used
+          flutter-version: ${{ FLUTTER_VERSION }}
+          channel: "stable"
+
+      # Run flutter commands
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🕵️ Analyze to check for bad Dart/Flutter practices
+        run: flutter analyze
+
+      - name: 📉 Run all app tests
+        run: flutter test
+
+      # # Build Android Bundle release file
+      # - name: Build aab
+      #   run: |
+      #     flutter build appbundle
+      #     --release
+
+      # # Upload generated aab to project artifacts
+      # - name: Upload generated aab to the artifacts
+      #   uses: actions/upload-artifact@master
+      #   with:
+      #     name: aab-stores
+      #     path: { { env.AAB_PATH } }
+
+      # - id: auth
+      #   uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJsonPlainText: ${{ SERVICE_ACCOUNT_JSON }}
+      #     packageName: ch.joshuahemmings.WODRepLog
+      #     releaseFiles: app/build/outputs/bundle/release/app-release.aab
+      #     track: production
+      #     status: inProgress
+      #     inAppUpdatePriority: 2
+      #     userFraction: 0.33
+      #     whatsNewDirectory: distribution/whatsnew
+      #     mappingFile: app/build/outputs/mapping/release/mapping.txt
+      #     debugSymbols: app/intermediates/merged_native_libs/release/out/lib

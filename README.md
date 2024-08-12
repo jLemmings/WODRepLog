@@ -15,9 +15,32 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+## Dev
+flutter emulators --launch Pixel_8_API_35
+flutter run
+
 ## Build
 - flutter build appbundle
 - bundletool build-apks --bundle=build/app/outputs/bundle/release/app-release.aab --output=build/app/outputs/apk/release/wodreplog.apks
 - adb pair ip:port
 - adb devices
 - bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
+
+
+
+# Colours
+Primary:
+    Dark Charcoal (#1C1C1E)
+    Graphite Gray (#2C2C2E)
+
+Accent Colors:
+    Electric Blue (#007AFF)
+    Neon Green (#32FF7E)
+    Fiery Orange (#FF9500)
+
+Neutral Colors:
+    Cool Gray (#8E8E93)
+    Soft White (#EFEFF4)
+
+Special Elements:
+    Crimson Red (#FF3B30)
