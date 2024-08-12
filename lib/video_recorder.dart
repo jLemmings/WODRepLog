@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path/path.dart' as path;
+import 'package:gallery_saver/gallery_saver.dart';
 
 class VideoRecorder extends StatefulWidget {
   const VideoRecorder({super.key});
@@ -12,8 +12,12 @@ class VideoRecorder extends StatefulWidget {
 }
 
 class _VideoRecorderState extends State<VideoRecorder> {
-  CameraController? _controller;
+  late CameraController _controller;
   bool _isRecording = false;
+  String competitionName = '';
+  String workoutName = '';
+
+  final List<Map<String, dynamic>> _textFields = [];
 
   @override
   void initState() {
@@ -22,78 +26,147 @@ class _VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.first;
-    _controller = CameraController(camera, ResolutionPreset.high);
-    await _controller!.initialize();
-    setState(() {});
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.first;
+      _controller = CameraController(camera, ResolutionPreset.high);
+      await _controller.initialize();
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      _showErrorSnackBar('Failed to initialize camera: $e');
+    }
+  }
+
+  void _addTextField() {
+    setState(() {
+      _textFields.add({
+        'text': '',
+        'top': 100.0,
+        'left': 100.0,
+      });
+    });
+  }
+
+  void _updateTextField(int index, String text) {
+    setState(() {
+      _textFields[index]['text'] = text;
+    });
+  }
+
+  void _updatePosition(int index, Offset position) {
+    setState(() {
+      _textFields[index]['top'] = position.dy;
+      _textFields[index]['left'] = position.dx;
+    });
   }
 
   Future<void> _startRecording() async {
-    if (_controller == null || !_controller!.value.isInitialized) {
-      return;
-    }
+    if (!_controller.value.isInitialized) return;
 
     try {
-      await _controller!.startVideoRecording();
+      await _controller.startVideoRecording();
       setState(() {
         _isRecording = true;
       });
     } catch (e) {
-      print('Error starting video recording: $e');
+      _showErrorSnackBar('Error starting video recording: $e');
     }
   }
 
   Future<void> _stopRecording() async {
-    if (_controller == null ||
-        !_controller!.value.isInitialized ||
-        !_isRecording) {
-      return;
-    }
+    if (!_controller.value.isInitialized || !_isRecording) return;
 
     try {
-      // Stop recording and get the video file
-      final XFile videoFile = await _controller!.stopVideoRecording();
+      final XFile videoFile = await _controller.stopVideoRecording();
       setState(() {
         _isRecording = false;
       });
 
-      final filePath = videoFile.path;
-      final file = File(filePath);
+      final newFilePath = '${path.withoutExtension(videoFile.path)}.mp4';
+      await File(videoFile.path).rename(newFilePath);
 
-      // Check if the file exists
-      if (!await file.exists()) {
-        print('File does not exist at path: $filePath');
-        return;
-      }
-
-      // Check and validate the file type
-
-      final newFilePath = '${path.withoutExtension(filePath)}.mp4';
-      await file.rename(newFilePath);
-
-      print('debug: $file');
-      // Save video to gallery
       final bool? success = await GallerySaver.saveVideo(newFilePath);
       if (success == true) {
-        print('Video saved to gallery');
+        _showSnackBar('Video saved to gallery');
       } else {
-        print('Failed to save video to gallery');
+        _showErrorSnackBar('Failed to save video to gallery');
       }
     } catch (e) {
-      print('Error stopping video recording: $e');
+      _showErrorSnackBar('Error stopping video recording: $e');
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showInputDialog() {
+    final competitionController = TextEditingController(text: competitionName);
+    final workoutController = TextEditingController(text: workoutName);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: competitionController,
+                decoration: const InputDecoration(
+                  labelText: 'Competition Name',
+                ),
+              ),
+              TextField(
+                controller: workoutController,
+                decoration: const InputDecoration(
+                  labelText: 'Workout Name',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  competitionName = competitionController.text;
+                  workoutName = workoutController.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null || !_controller!.value.isInitialized) {
+    if (!_controller.value.isInitialized) {
       return Scaffold(
         appBar: AppBar(title: const Text('Video Recorder')),
         body: const Center(child: CircularProgressIndicator()),
@@ -102,21 +175,72 @@ class _VideoRecorderState extends State<VideoRecorder> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Video Recorder')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AspectRatio(
-              aspectRatio: _controller!.value.aspectRatio,
-              child: CameraPreview(_controller!),
+      body: Stack(
+        children: [
+          CameraPreview(_controller),
+          Positioned(
+            top: 20,
+            left: 20,
+            child: Text(
+              competitionName,
+              style: const TextStyle(
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isRecording ? _stopRecording : _startRecording,
-              child: Text(_isRecording ? 'Stop Recording' : 'Start Recording'),
+          ),
+          Positioned(
+            top: 60,
+            left: 20,
+            child: Text(
+              workoutName,
+              style: const TextStyle(
+                fontSize: 20,
+                color: Colors.white,
+              ),
             ),
-          ],
-        ),
+          ),
+          ..._textFields.map((textField) {
+            int index = _textFields.indexOf(textField);
+            return Positioned(
+              top: textField['top'],
+              left: textField['left'],
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  _updatePosition(index, details.localPosition);
+                },
+                child: SizedBox(
+                  width: 200,
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Enter text',
+                    ),
+                    onChanged: (text) {
+                      _updateTextField(index, text);
+                    },
+                    controller: TextEditingController(text: textField['text']),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _showInputDialog,
+            child: const Icon(Icons.text_fields),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: _addTextField,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

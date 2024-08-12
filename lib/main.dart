@@ -1,6 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'splash_screen.dart'; // Import the SplashScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +22,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: HomeScreen(camera: camera),
+      // Start with the SplashScreen
+      home: SplashScreen(camera: camera),
     );
   }
 }
