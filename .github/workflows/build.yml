@@ -18,10 +18,10 @@ jobs:
         uses: actions/checkout@v4
 
       # Setup Java in the VM
-      - name: Setup Java to compile the Android project
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "temurin" # See 'Supported distributions' for available options
+          java-version: "21"
 
       # Setup Java in the VM
       - name: Install Flutter
