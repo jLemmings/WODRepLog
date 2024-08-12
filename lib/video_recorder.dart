@@ -22,6 +22,10 @@ class _VideoRecorderState extends State<VideoRecorder> {
   Timer? _timer;
   int _elapsedSeconds = 0;
 
+  int _timerDuration = 30; // Example duration
+  int? _interval;
+  int? _rounds;
+
   @override
   void initState() {
     super.initState();
@@ -176,6 +180,59 @@ class _VideoRecorderState extends State<VideoRecorder> {
     );
   }
 
+  void _showTimerConfigDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Configure Timer'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration:
+                    const InputDecoration(labelText: 'Duration (seconds)'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  setState(() {
+                    _timerDuration = int.parse(value);
+                  });
+                },
+              ),
+              TextField(
+                decoration:
+                    const InputDecoration(labelText: 'Interval (seconds)'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  setState(() {
+                    _interval = int.parse(value);
+                  });
+                },
+              ),
+              TextField(
+                decoration: const InputDecoration(labelText: 'Rounds'),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  setState(() {
+                    _rounds = int.parse(value);
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
@@ -258,11 +315,7 @@ class _VideoRecorderState extends State<VideoRecorder> {
             bottom: 90,
             right: 16,
             child: FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _showTimer = !_showTimer;
-                });
-              },
+              onPressed: _showTimerConfigDialog,
               child: const Icon(Icons.timer),
             ),
           ),
