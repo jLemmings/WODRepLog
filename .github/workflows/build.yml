@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Setup env variables that will be used throughout the workflow
-      JAVA_VERSION: 21.0
+      JAVA_VERSION: 22.0
       FLUTTER_VERSION: 3.22.3
 
     steps:
