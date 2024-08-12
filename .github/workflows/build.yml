@@ -23,6 +23,9 @@ jobs:
           distribution: "temurin" # See 'Supported distributions' for available options
           java-version: ${{ env.JAVA_VERSION }}
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       # Setup Java in the VM
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -36,9 +39,6 @@ jobs:
 
       - name: 🕵️ Analyze to check for bad Dart/Flutter practices
         run: flutter analyze
-
-      - name: 🕵️ Fix
-        run: ./gradlew wrapper --gradle-version=8.8
 
       - name: Build release app bundle
         run: flutter build appbundle
