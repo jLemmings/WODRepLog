@@ -26,7 +26,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           # Define which stable flutter version should be used
-          flutter-version: ${{ FLUTTER_VERSION }}
+          flutter-version: $FLUTTER_VERSION
           channel: "stable"
 
       # Run flutter commands
