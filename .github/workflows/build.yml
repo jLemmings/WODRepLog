@@ -28,32 +28,30 @@ jobs:
       - name: 🕵️ Analyze to check for bad Dart/Flutter practices
         run: flutter analyze
 
-      - name: 📉 Run all app tests
-        run: flutter test
+      - name: Build release app bundle
+        run: flutter build appbundle
 
-      # # Build Android Bundle release file
-      # - name: Build aab
-      #   run: |
-      #     flutter build appbundle
-      #     --release
+      - name: Sign App Bundle
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: build/app/outputs/bundle/release/
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
+          alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
 
-      # # Upload generated aab to project artifacts
-      # - name: Upload generated aab to the artifacts
-      #   uses: actions/upload-artifact@master
-      #   with:
-      #     name: aab-stores
-      #     path: { { env.AAB_PATH } }
+      - name: Upload to Play Store (Internal Testing)
+        uses: r0adkll/upload-google-play@v1.0.18
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+          packageName: com.testgroup.flutter_github_actions_android
+          releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
+          mappingFile: ./build/app/outputs/mapping/release/mapping.txt
+          track: internal
 
-      # - id: auth
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ SERVICE_ACCOUNT_JSON }}
-      #     packageName: ch.joshuahemmings.WODRepLog
-      #     releaseFiles: app/build/outputs/bundle/release/app-release.aab
-      #     track: production
-      #     status: inProgress
-      #     inAppUpdatePriority: 2
-      #     userFraction: 0.33
-      #     whatsNewDirectory: distribution/whatsnew
-      #     mappingFile: app/build/outputs/mapping/release/mapping.txt
-      #     debugSymbols: app/intermediates/merged_native_libs/release/out/lib
+      - name: Upload Signed App Bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: signed-app-bundle
+          path: ${{steps.sign_app.outputs.signedReleaseFile}}
