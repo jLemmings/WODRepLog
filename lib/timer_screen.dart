@@ -16,10 +16,10 @@ class TimerScreen extends StatefulWidget {
   });
 
   @override
-  _TimerScreenState createState() => _TimerScreenState();
+  TimerScreenState createState() => TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen>
+class TimerScreenState extends State<TimerScreen>
     with SingleTickerProviderStateMixin {
   late int _currentRound;
   late int _currentTime;

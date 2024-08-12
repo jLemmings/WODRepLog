@@ -5,10 +5,10 @@ class EmomSettings extends StatefulWidget {
   const EmomSettings({super.key});
 
   @override
-  _EmomSettingsState createState() => _EmomSettingsState();
+  EmomSettingsState createState() => EmomSettingsState();
 }
 
-class _EmomSettingsState extends State<EmomSettings> {
+class EmomSettingsState extends State<EmomSettings> {
   final _formKey = GlobalKey<FormState>();
   late int _interval;
 
@@ -23,7 +23,8 @@ class _EmomSettingsState extends State<EmomSettings> {
           child: Column(
             children: <Widget>[
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Interval (seconds)'),
+                decoration:
+                    const InputDecoration(labelText: 'Interval (seconds)'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {

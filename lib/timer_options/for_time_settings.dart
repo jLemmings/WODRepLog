@@ -5,10 +5,10 @@ class ForTimeSettings extends StatefulWidget {
   const ForTimeSettings({super.key});
 
   @override
-  _ForTimeSettingsState createState() => _ForTimeSettingsState();
+  ForTimeSettingsState createState() => ForTimeSettingsState();
 }
 
-class _ForTimeSettingsState extends State<ForTimeSettings> {
+class ForTimeSettingsState extends State<ForTimeSettings> {
   final _formKey = GlobalKey<FormState>();
   late int _duration;
 
@@ -23,7 +23,8 @@ class _ForTimeSettingsState extends State<ForTimeSettings> {
           child: Column(
             children: <Widget>[
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Duration (minutes)'),
+                decoration:
+                    const InputDecoration(labelText: 'Duration (minutes)'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {

@@ -10,13 +10,13 @@ class VideoRecorder extends StatefulWidget {
   const VideoRecorder({super.key});
 
   @override
-  _VideoRecorderState createState() => _VideoRecorderState();
+  VideoRecorderState createState() => VideoRecorderState();
 }
 
-class _VideoRecorderState extends State<VideoRecorder> {
+class VideoRecorderState extends State<VideoRecorder> {
   late CameraController _controller;
   bool _isRecording = false;
-  bool _showTimer = false;
+  final bool _showTimer = false;
   String competitionName = '';
   String workoutName = '';
   Timer? _timer;
@@ -67,10 +67,15 @@ class _VideoRecorderState extends State<VideoRecorder> {
   }
 
   void _startTimer() {
+    if (_interval == null || _rounds == null) return; // Ensure they are set
     _elapsedSeconds = 0;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+
+    _timer = Timer.periodic(Duration(seconds: _interval!), (timer) {
       setState(() {
         _elapsedSeconds++;
+        if (_elapsedSeconds >= _rounds! * _timerDuration) {
+          _timer?.cancel();
+        }
       });
     });
   }
@@ -242,8 +247,8 @@ class _VideoRecorderState extends State<VideoRecorder> {
   @override
   Widget build(BuildContext context) {
     if (!_controller.value.isInitialized) {
-      return Scaffold(
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
