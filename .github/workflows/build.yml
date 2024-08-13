@@ -61,7 +61,7 @@ jobs:
       #   uses: actions/upload-artifact@v4
       #   with:
       #     name: signed-app-bundle
-      #     path: ${{steps.sign_app.outputs.signedReleaseFile}}
+      #     path: ${{ steps.sign_app.outputs.signedReleaseFile }}
 
       # APK
       - name: Build release apk bundle
@@ -86,29 +86,11 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
 
-      - uses: jungwinter/split@v1
-        id: signed_files
-        with:
-          msg: ${{ steps.sign_apk.signedReleaseFiles }}
-          separator: ":"
-
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk-bundle
-          path: ${{steps.signed_files._0}}
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle
-          path: ${{steps.signed_files._1}}
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle
-          path: ${{steps.signed_files._2}}
+          path: ${{ steps.sign_apk.outputs.signedReleaseFile }}
 
       # - name: Upload to Play Store (Internal Testing)
       #   uses: r0adkll/upload-google-play@v1.0.18
