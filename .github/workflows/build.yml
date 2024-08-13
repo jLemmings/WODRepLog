@@ -89,19 +89,19 @@ jobs:
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk-bundle
+          name: signed-apk-bundle-v7a
           path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
 
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk-bundle
+          name: signed-apk-bundle-v8a
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release-aligned.apk
 
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk-bundle
+          name: signed-apk-bundle-x86
           path: build/app/outputs/flutter-apk/app-x86_64-release.apk
       # - name: Upload to Play Store (Internal Testing)
       #   uses: r0adkll/upload-google-play@v1.0.18
