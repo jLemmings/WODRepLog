@@ -46,6 +46,9 @@ jobs:
       - name: Build release app bundle
         run: flutter build appbundle
 
+      - name: Build release app bundle
+        run: flutter build apk --split-per-abi
+
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
         id: sign_app
