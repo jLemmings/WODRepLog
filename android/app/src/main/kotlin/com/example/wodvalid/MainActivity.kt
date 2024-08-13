@@ -1,4 +1,4 @@
-package com.example.wodreplog
+package ch.joshuahemmings.wodreplog
 
 import io.flutter.embedding.android.FlutterActivity
 
