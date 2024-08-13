@@ -90,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk-bundle
-          path: ${{ steps.sign_apk.outputs.signedReleaseFile }}
+          path: ${{ steps.sign_apk.outputs.signedReleaseFiles }}
 
       # - name: Upload to Play Store (Internal Testing)
       #   uses: r0adkll/upload-google-play@v1.0.18
