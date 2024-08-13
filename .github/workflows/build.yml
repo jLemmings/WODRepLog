@@ -43,6 +43,7 @@ jobs:
       - name: 🕵️ flutter doctor --verbose
         run: flutter doctor --verbose
 
+      # Bundle
       - name: Build release app bundle
         run: flutter build appbundle
 
@@ -56,6 +57,13 @@ jobs:
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
 
+      - name: Upload Signed App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-app-bundle
+          path: ${{steps.sign_app.outputs.signedReleaseFile}}
+
+      # APK
       - name: Build release apk bundle
         run: flutter build apk --split-per-abi
 
@@ -63,11 +71,35 @@ jobs:
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
-          releaseDirectory: build/outputs/apk/release/
+          releaseDirectory: build/app/outputs/flutter-apk/
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
           alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+      - uses: jungwinter/split@v1
+        id: signed_files
+        with:
+          msg: ${{ steps.sign_apk.signedReleaseFiles }}
+          separator: ":"
+
+      - name: Upload Signed APK Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-apk-bundle
+          path: ${{steps.signed_files._0}}
+
+      - name: Upload Signed APK Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-apk-bundle
+          path: ${{steps.signed_files._1}}
+
+      - name: Upload Signed APK Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-apk-bundle
+          path: ${{steps.signed_files._2}}
 
       # - name: Upload to Play Store (Internal Testing)
       #   uses: r0adkll/upload-google-play@v1.0.18
@@ -77,15 +109,3 @@ jobs:
       #     releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
       #     mappingFile: ./build/app/outputs/mapping/release/mapping.txt
       #     track: internal
-
-      - name: Upload Signed App Bundle
-        uses: actions/upload-artifact@v3
-        with:
-          name: signed-app-bundle
-          path: ${{steps.sign_app.outputs.signedReleaseFile}}
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v3
-        with:
-          name: signed-apk-bundle
-          path: ${{steps.sign_apk.outputs.signedReleaseFile}}
