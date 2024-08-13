@@ -46,14 +46,24 @@ jobs:
       - name: Build release app bundle
         run: flutter build appbundle
 
-      - name: Build release app bundle
-        run: flutter build apk --split-per-abi
-
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
           releaseDirectory: build/app/outputs/bundle/release/
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
+          alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+      - name: Build release apk bundle
+        run: flutter build apk --split-per-abi
+
+      - name: Sign APK Bundle
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: build/app/outputs/flutter-apk/
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
           alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
