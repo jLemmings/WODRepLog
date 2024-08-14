@@ -17,7 +17,7 @@ class SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // Navigate to HomeScreen after 5 seconds
+    // Navigate to HomeScreen after 3 seconds
     Timer(const Duration(seconds: 3), () {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -29,15 +29,20 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.videocam, size: 100, color: Colors.blue),
-            SizedBox(height: 20),
-            Text(
-              'Loading...',
+            // Use AssetImage to load the image
+            Image.asset(
+              'assets/icon/app_icon.png', // Replace with your icon's path
+              width: 200,
+              height: 200,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'WODRepLog',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ],

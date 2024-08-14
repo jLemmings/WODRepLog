@@ -11,7 +11,18 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
+      appBar: AppBar(
+        // Centering the app icon in the AppBar
+        title: Center(
+          child: Image.asset(
+            'assets/icon/app_icon.png', // Replace with your icon's path
+            width: 100, // Set the desired width for the icon
+            height: 100, // Set the desired height for the icon
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0, // Removes shadow under AppBar
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -20,7 +31,8 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const VideoRecorder()),
+                  MaterialPageRoute(
+                      builder: (context) => const VideoRecorder()),
                 );
               },
               child: const Text('Go to Video Recorder'),

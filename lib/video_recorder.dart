@@ -256,13 +256,16 @@ class VideoRecorderState extends State<VideoRecorder> {
       body: Stack(
         children: [
           Center(
-            // Center the FittedBox horizontally
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _controller.value.previewSize!.width,
-                height: _controller.value.previewSize!.height,
-                child: CameraPreview(_controller),
+            // Center the FittedBox horizontally with a 180-degree rotation
+            child: Transform.rotate(
+              angle: 3.14159, // 180 degrees in radians
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller.value.previewSize!.width,
+                  height: _controller.value.previewSize!.height,
+                  child: CameraPreview(_controller),
+                ),
               ),
             ),
           ),
@@ -289,8 +292,7 @@ class VideoRecorderState extends State<VideoRecorder> {
               ),
             ),
           ),
-          if (_isRecording &&
-              _showTimer) // Show the timer only when recording and if it's enabled
+          if (_isRecording && _showTimer)
             Positioned(
               top: 20,
               right: 20,
@@ -309,8 +311,7 @@ class VideoRecorderState extends State<VideoRecorder> {
         children: [
           Positioned(
             bottom: 16,
-            left: MediaQuery.of(context).size.width / 2 -
-                28, // Center the record button
+            left: MediaQuery.of(context).size.width / 2 - 28,
             child: FloatingActionButton(
               onPressed: _isRecording ? _stopRecording : _startRecording,
               child: Icon(_isRecording ? Icons.stop : Icons.videocam),
