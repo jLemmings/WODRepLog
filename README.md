@@ -46,3 +46,6 @@ Neutral Colors:
 
 Special Elements:
     Crimson Red (#FF3B30)
+
+# Logo
+flutter pub run flutter_launcher_icons:main

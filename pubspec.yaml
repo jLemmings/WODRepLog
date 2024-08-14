@@ -47,6 +47,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -58,6 +59,13 @@ dev_dependencies:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png" # Path to your icon image
+  adaptive_icon_background: "#ffffff" # Optional background color for Android adaptive icons
+  adaptive_icon_foreground: "assets/icon/app_icon.png" # Optional, use the same image if not using a different foreground
+
 # The following section is specific to Flutter packages.
 flutter:
   # The following line ensures that the Material Icons font is
@@ -67,7 +75,8 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/beep.wav
+    - "assets/beep.wav"
+    - "assets/icon/app_icon.png"
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
