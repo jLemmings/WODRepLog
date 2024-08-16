@@ -1,4 +1,4 @@
-plugins {
+lugins {
     id "com.android.application"
     id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -23,12 +23,6 @@ if (flutterVersionName == null) {
     flutterVersionName = "0.0.4"
 }
 
-if (System.env.RELEASE_NAME != "") {
-    flutterVersionName = System.env.RELEASE_NAME
-    flutterVersionCode = System.env.RELEASE_NAME
-}
-
-
 // def keystoreProperties = new Properties()
 // def keystorePropertiesFile = rootProject.file('key.properties')
 // if (keystorePropertiesFile.exists()) {
@@ -52,7 +46,7 @@ android {
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutterVersionCode.toInteger()
+        versionName = System.getenv("RELEASE_NAME") ?: flutterVersionCode.toInteger()
         versionName = flutterVersionName
         
 
