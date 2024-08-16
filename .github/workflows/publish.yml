@@ -11,6 +11,7 @@ jobs:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
       FLUTTER_VERSION: 3.22.3
+      flutter.versionName: ${{ github.event.release.tag_name }}
 
     steps:
       # Checkout repository codebase
