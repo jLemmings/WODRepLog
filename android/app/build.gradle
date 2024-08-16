@@ -25,6 +25,7 @@ if (flutterVersionName == null) {
 
 if (System.env.RELEASE_NAME != "") {
     flutterVersionName = System.env.RELEASE_NAME
+    flutterVersionCode = System.env.RELEASE_NAME
 }
 
 
