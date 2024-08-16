@@ -23,6 +23,11 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+if (System.env.RELEASE_NAME != "") {
+    flutterVersionName = System.env.RELEASE_NAME
+}
+
+
 // def keystoreProperties = new Properties()
 // def keystorePropertiesFile = rootProject.file('key.properties')
 // if (keystorePropertiesFile.exists()) {
