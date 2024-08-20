@@ -51,17 +51,13 @@ class TimerScreenState extends State<TimerScreen>
 
     _countdownPlayer = AudioPlayer(); // Initialize AudioPlayer for countdown
     _startPlayer = AudioPlayer(); // Initialize AudioPlayer for start beep
-    _countdownPlayer
-        .setSource(AssetSource('beep.mp3')); // Load beep sound for countdown
-    _startPlayer
-        .setSource(AssetSource('start_beep.mp3')); // Load start beep sound
-  }
 
-  void _playStartBeep() async {
-    _startPlayer.play(AssetSource('beep.wav')); // Play start beep sound
-    await Future.delayed(
-        const Duration(seconds: 2)); // Play for 2 seconds or as needed
-    _startPlayer.stop(); // Stop playing after duration
+    // Load beep sounds
+    _countdownPlayer
+        .setSource(AssetSource('beep.wav')); // Load beep sound for countdown
+    _startPlayer.setSource(AssetSource('beep.wav')); // Load start beep sound
+
+    _startCountdown(); // Start the countdown immediately
   }
 
   void _startMainTimer() {
@@ -101,6 +97,7 @@ class TimerScreenState extends State<TimerScreen>
   void _startCountdown() {
     setState(() {
       _isCountdownActive = true;
+      _countdown = 3; // Reset countdown to 3 seconds
     });
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -116,6 +113,13 @@ class TimerScreenState extends State<TimerScreen>
         _startMainTimer();
       }
     });
+  }
+
+  void _playStartBeep() async {
+    _startPlayer.play(AssetSource('start_beep.wav')); // Play start beep sound
+    await Future.delayed(
+        const Duration(seconds: 2)); // Play for 2 seconds or as needed
+    _startPlayer.stop(); // Stop playing after duration
   }
 
   void _pauseTimer() {
@@ -167,7 +171,12 @@ class TimerScreenState extends State<TimerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Timer')),
+      appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Timer')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -191,12 +200,7 @@ class TimerScreenState extends State<TimerScreen>
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: 20),
-            if (_isCountdownActive)
-              ElevatedButton(
-                onPressed: _startCountdown,
-                child: const Text('Start Countdown'),
-              )
-            else if (_isRunning)
+            if (_isRunning)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -210,11 +214,6 @@ class TimerScreenState extends State<TimerScreen>
                     child: const Text('Reset'),
                   ),
                 ],
-              )
-            else
-              ElevatedButton(
-                onPressed: _startCountdown,
-                child: const Text('Start Timer'),
               ),
           ],
         ),

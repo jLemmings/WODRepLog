@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../timer_screen.dart';
-import '../theme.dart'; // Import your custom theme file
+import '../theme.dart';
 
 class TabataSettings extends StatefulWidget {
   const TabataSettings({super.key});
@@ -120,8 +120,20 @@ class TabataSettingsState extends State<TabataSettings> {
           children: <Widget>[
             const Spacer(),
             const Text(
-              'Set your Tabata Timer',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              'Tabata',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Set your timer',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -204,7 +216,17 @@ class TabataSettingsState extends State<TabataSettings> {
                   ),
                 ),
                 onPressed: () {
-                  // Handle Timer Start here
+                  // Start the timer by navigating to the TimerScreen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TimerScreen(
+                        duration: totalWorkInterval, // Work interval
+                        interval: totalRestInterval, // Rest interval
+                        rounds: _rounds, // Rounds
+                      ),
+                    ),
+                  );
                 },
                 child: Column(
                   children: [
