@@ -12,16 +12,19 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // Centering the app icon in the AppBar
-        title: Center(
-          child: Image.asset(
-            'assets/icon/app_icon.png', // Replace with your icon's path
-            width: 100, // Set the desired width for the icon
-            height: 100, // Set the desired height for the icon
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'WODRepLog',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0, // Removes shadow under AppBar
+        centerTitle: true,
       ),
       body: Center(
         child: Column(

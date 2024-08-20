@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../timer_screen.dart';
-import '../theme.dart'; // Import the theme file to access the custom colors
+import '../theme.dart'; // Import your custom theme file
 
 class EmomSettings extends StatefulWidget {
   const EmomSettings({super.key});
@@ -11,11 +11,48 @@ class EmomSettings extends StatefulWidget {
 
 class EmomSettingsState extends State<EmomSettings> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers for the text fields
+  final TextEditingController _intervalController = TextEditingController();
+  final TextEditingController _roundsController = TextEditingController();
+
+  // Initial values
   int _interval = 2;
-  int _duration = 24;
+  int _rounds = 12;
+
+  @override
+  void initState() {
+    super.initState();
+    _intervalController.text = _interval.toString();
+    _roundsController.text = _rounds.toString();
+
+    // Listen to text changes
+    _intervalController.addListener(() {
+      setState(() {
+        _interval = int.tryParse(_intervalController.text) ?? _interval;
+      });
+    });
+
+    _roundsController.addListener(() {
+      setState(() {
+        _rounds = int.tryParse(_roundsController.text) ?? _rounds;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    // Dispose controllers when the widget is removed
+    _intervalController.dispose();
+    _roundsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Calculate the total duration in minutes
+    final int totalDuration = _interval * _rounds;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -23,7 +60,7 @@ class EmomSettingsState extends State<EmomSettings> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'WODRepLog',
+          'EMOM',
           style: TextStyle(
             color: Colors.white,
             fontSize: 24,
@@ -31,14 +68,15 @@ class EmomSettingsState extends State<EmomSettings> {
           ),
         ),
         centerTitle: true,
+        elevation: 0,
       ),
       body: Form(
         key: _formKey,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
             children: <Widget>[
-              const Spacer(), // Spacer to push the content to the center
+              const Spacer(),
               Column(
                 children: [
                   const Text(
@@ -49,10 +87,12 @@ class EmomSettingsState extends State<EmomSettings> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Every 2 minutes for 24 minutes',
-                    style: TextStyle(
+                  const SizedBox(height: 8),
+                  // Updated text based on the input fields
+                  Text(
+                    'Every $_interval minutes for $_rounds rounds\nfor a total of $totalDuration minutes',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                     ),
@@ -71,14 +111,12 @@ class EmomSettingsState extends State<EmomSettings> {
                             width: 80,
                             decoration: BoxDecoration(
                               border: Border.all(
-                                  color:
-                                      Theme.of(context).colorScheme.emomColor),
+                                color: Theme.of(context).colorScheme.emomColor,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
                             child: TextFormField(
-                              initialValue: _interval.toString(),
+                              controller: _intervalController,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -95,9 +133,6 @@ class EmomSettingsState extends State<EmomSettings> {
                                 }
                                 return null;
                               },
-                              onSaved: (value) {
-                                _interval = int.parse(value!);
-                              },
                             ),
                           ),
                         ],
@@ -113,14 +148,12 @@ class EmomSettingsState extends State<EmomSettings> {
                             width: 80,
                             decoration: BoxDecoration(
                               border: Border.all(
-                                  color:
-                                      Theme.of(context).colorScheme.emomColor),
+                                color: Theme.of(context).colorScheme.emomColor,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
                             child: TextFormField(
-                              initialValue: _duration.toString(),
+                              controller: _roundsController,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -133,12 +166,9 @@ class EmomSettingsState extends State<EmomSettings> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Enter duration';
+                                  return 'Enter rounds';
                                 }
                                 return null;
-                              },
-                              onSaved: (value) {
-                                _duration = int.parse(value!);
                               },
                             ),
                           ),
@@ -148,17 +178,13 @@ class EmomSettingsState extends State<EmomSettings> {
                   ),
                 ],
               ),
-              const Spacer(), // Spacer to push the button to the bottom
+              const Spacer(),
               Padding(
-                padding: const EdgeInsets.only(
-                    bottom: 20.0), // Add some padding at the bottom
+                padding: const EdgeInsets.only(bottom: 24.0),
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .emomColor, // Use emomColor here
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 16),
+                        horizontal: 80, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
@@ -170,7 +196,7 @@ class EmomSettingsState extends State<EmomSettings> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => TimerScreen(
-                            duration: _duration,
+                            duration: totalDuration, // Pass total duration
                             interval: _interval,
                           ),
                         ),
