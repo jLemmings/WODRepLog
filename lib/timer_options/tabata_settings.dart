@@ -11,8 +11,6 @@ class TabataSettings extends StatefulWidget {
 }
 
 class TabataSettingsState extends State<TabataSettings> {
-  final _formKey = GlobalKey<FormState>();
-
   // Initial values
   int _rounds = 6;
   int _workMinutes = 3; // Work interval minutes
