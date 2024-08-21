@@ -47,7 +47,7 @@ jobs:
 
       # APK
       - name: Build release apk bundle
-        run: flutter build apk --split-per-abi
+        run: flutter build apk --debug --split-per-abi
 
       - name: Setup build tool version variable
         shell: bash
