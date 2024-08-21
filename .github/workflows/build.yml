@@ -2,7 +2,9 @@ name: Build
 
 on:
   push:
-    branches: ["master"]
+    branches: 
+      - "master"
+      - "feature/**"
 
 jobs:
   build:
@@ -45,7 +47,7 @@ jobs:
 
       # APK
       - name: Build release apk bundle
-        run: flutter build apk --split-per-abi
+        run: flutter build apk --debug --split-per-abi
 
       - name: Setup build tool version variable
         shell: bash
@@ -70,16 +72,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk-bundle-v7a
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-debug-signed.apk
 
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk-bundle-v8a
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-release-aligned.apk
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-debug-aligned.apk
 
       - name: Upload Signed APK Bundle
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk-bundle-x86
-          path: build/app/outputs/flutter-apk/app-x86_64-release.apk
+          path: build/app/outputs/flutter-apk/app-x86_64-debug-signed.apk
