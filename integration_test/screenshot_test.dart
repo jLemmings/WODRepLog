@@ -1,22 +1,32 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:wodreplog/main.dart';
 
-void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized()
-      as IntegrationTestWidgetsFlutterBinding;
+const _screenshotDirectory = String.fromEnvironment(
+  'SCREENSHOT_DIR',
+  defaultValue: 'integration_test/screenshots',
+);
 
-  const outputDirectory = 'integration_test/screenshots';
-  binding.testOutputsDirectory = outputDirectory;
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    final directory = Directory(outputDirectory);
+    final directory = Directory(_screenshotDirectory);
     if (!directory.existsSync()) {
       directory.createSync(recursive: true);
+    }
+
+    for (final entity in directory.listSync()) {
+      if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
+        entity.deleteSync();
+      }
     }
   });
 
@@ -30,25 +40,25 @@ void main() {
     await tester.pumpWidget(const MyApp(camera: fakeCamera));
     await tester.pump();
 
-    await binding.takeScreenshot('01_splash_screen');
+    await _captureScreenshot(tester, '01_splash_screen');
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
-    await binding.takeScreenshot('02_home_screen');
+    await _captureScreenshot(tester, '02_home_screen');
 
     final timerButton = find.text('Go to Timer View');
     expect(timerButton, findsOneWidget);
     await tester.tap(timerButton);
     await tester.pumpAndSettle();
 
-    await binding.takeScreenshot('03_timer_view');
+    await _captureScreenshot(tester, '03_timer_view');
 
     final amrapButton = find.text('AMRAP');
     if (amrapButton.evaluate().isNotEmpty) {
       await tester.tap(amrapButton);
       await tester.pumpAndSettle();
-      await binding.takeScreenshot('04_amrap_settings');
+      await _captureScreenshot(tester, '04_amrap_settings');
       await tester.pageBack();
       await tester.pumpAndSettle();
     }
@@ -56,6 +66,31 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await binding.takeScreenshot('05_home_after_timer');
+    await _captureScreenshot(tester, '05_home_after_timer');
+  });
+}
+
+Future<void> _captureScreenshot(WidgetTester tester, String name) async {
+  final binding = tester.binding as IntegrationTestWidgetsFlutterBinding;
+
+  final directory = Directory(_screenshotDirectory);
+  if (!directory.existsSync()) {
+    directory.createSync(recursive: true);
+  }
+
+  await tester.runAsync(() async {
+    final ui.Image image = await binding.renderView.toImage(
+      pixelRatio:
+          binding.platformDispatcher.implicitView?.devicePixelRatio ?? 1.0,
+    );
+    final ByteData? byteData =
+        await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      return;
+    }
+
+    final Uint8List pngBytes = byteData.buffer.asUint8List();
+    final file = File(p.join(directory.path, '$name.png'));
+    await file.writeAsBytes(pngBytes, flush: true);
   });
 }
