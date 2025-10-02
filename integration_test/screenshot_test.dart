@@ -15,7 +15,8 @@ const _screenshotDirectory = String.fromEnvironment(
 );
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final IntegrationTestWidgetsFlutterBinding binding =
+      IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
     final directory = Directory(_screenshotDirectory);
@@ -40,25 +41,25 @@ void main() {
     await tester.pumpWidget(const MyApp(camera: fakeCamera));
     await tester.pump();
 
-    await _captureScreenshot(tester, '01_splash_screen');
+    await _captureScreenshot(tester, binding, '01_splash_screen');
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
-    await _captureScreenshot(tester, '02_home_screen');
+    await _captureScreenshot(tester, binding, '02_home_screen');
 
     final timerButton = find.text('Go to Timer View');
     expect(timerButton, findsOneWidget);
     await tester.tap(timerButton);
     await tester.pumpAndSettle();
 
-    await _captureScreenshot(tester, '03_timer_view');
+    await _captureScreenshot(tester, binding, '03_timer_view');
 
     final amrapButton = find.text('AMRAP');
     if (amrapButton.evaluate().isNotEmpty) {
       await tester.tap(amrapButton);
       await tester.pumpAndSettle();
-      await _captureScreenshot(tester, '04_amrap_settings');
+      await _captureScreenshot(tester, binding, '04_amrap_settings');
       await tester.pageBack();
       await tester.pumpAndSettle();
     }
@@ -66,13 +67,15 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await _captureScreenshot(tester, '05_home_after_timer');
+    await _captureScreenshot(tester, binding, '05_home_after_timer');
   });
 }
 
-Future<void> _captureScreenshot(WidgetTester tester, String name) async {
-  final binding = tester.binding as IntegrationTestWidgetsFlutterBinding;
-
+Future<void> _captureScreenshot(
+  WidgetTester tester,
+  IntegrationTestWidgetsFlutterBinding binding,
+  String name,
+) async {
   final directory = Directory(_screenshotDirectory);
   if (!directory.existsSync()) {
     directory.createSync(recursive: true);
