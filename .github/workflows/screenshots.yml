@@ -22,7 +22,7 @@ jobs:
         run: flutter pub get
 
       - name: Run screenshot integration test
-        run: flutter test integration_test/screenshot_test.dart --dart-define=CI=true
+        run: flutter test -d flutter-tester integration_test/screenshot_test.dart --dart-define=CI=true
 
       - name: Upload screenshots
         if: always()
