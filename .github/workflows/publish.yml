@@ -10,7 +10,7 @@ jobs:
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
-      FLUTTER_VERSION: 3.22.3
+      FLUTTER_VERSION: 3.35.5
       VERSION_NAME: ${{ github.event.release.tag_name }}
       VERSION_CODE: ${{github.run_number}}
 
@@ -56,7 +56,7 @@ jobs:
 
       # Bundle
       - name: Build release app bundle
-        run: flutter build appbundle
+        run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
