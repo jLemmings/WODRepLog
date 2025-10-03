@@ -3,6 +3,7 @@ import groovy.util.XmlParser
 buildscript {
     dependencies {
         classpath localGroovy()
+        classpath "org.codehaus.groovy:groovy-xml:3.0.21"
     }
 }
 
