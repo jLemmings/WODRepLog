@@ -16,7 +16,7 @@ jobs:
     steps:
       # Checkout repository codebase
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure Git user
         if: github.actor != 'github-actions[bot]'
