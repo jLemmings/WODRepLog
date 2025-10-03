@@ -1,13 +1,12 @@
-name: Build
+name: Build and Publish
 
 on:
   push:
-    branches: 
+    branches:
       - "master"
-      - "feature/**"
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     env:
       # Setup env variables that will be used throughout the workflow
@@ -19,6 +18,18 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v4
 
+      - name: Extract version information from pubspec
+        run: |
+          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
+          VERSION_NAME="${VERSION_LINE%%+*}"
+          VERSION_CODE="${VERSION_LINE##*+}"
+          if [ "$VERSION_CODE" = "$VERSION_LINE" ]; then
+            # Default version code to 1 when no build suffix is defined
+            VERSION_CODE=1
+          fi
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
       # Setup Java in the VM
       - uses: actions/setup-java@v4
         with:
@@ -28,7 +39,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Setup Java in the VM
+      # Setup Flutter in the VM
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -42,46 +53,35 @@ jobs:
       - name: 🕵️ Analyze to check for bad Dart/Flutter practices
         run: flutter analyze
 
-      - name: 🕵️ flutter doctor --verbose
+      - name: 🩺 flutter doctor --verbose
         run: flutter doctor --verbose
 
-      # APK
-      - name: Build release apk bundle
-        run: flutter build apk --debug --split-per-abi
+      # Bundle
+      - name: Build release app bundle
+        run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
-      - name: Setup build tool version variable
-        shell: bash
-        run: |
-          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
-          echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
-          echo Last build tool version is: $BUILD_TOOL_VERSION
-
-      - name: Sign APK Bundle
+      - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
-        id: sign_apk
+        id: sign_app
         with:
-          releaseDirectory: build/app/outputs/flutter-apk/
+          releaseDirectory: build/app/outputs/bundle/release/
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
           alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
 
-      - name: Upload Signed APK Bundle
+      - name: Upload to Play Store (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: ch.joshuahemmings.wodreplog
+          releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
+          releaseName: ${{ env.VERSION_NAME }}
+          mappingFile: build/app/outputs/mapping/release/mapping.txt
+          track: internal
+
+      - name: Upload signed app bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk-bundle-v7a
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-debug-signed.apk
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle-v8a
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-debug-aligned.apk
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle-x86
-          path: build/app/outputs/flutter-apk/app-x86_64-debug-signed.apk
+          name: signed-appbundle
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
