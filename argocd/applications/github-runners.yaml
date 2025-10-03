@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: github-runners
+  namespace: argocd
+spec:
+  project: infra
+  source:
+    repoURL: https://github.com/jLemmings/WODRepLog.git
+    targetRevision: HEAD
+    path: github-runners
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: actions-runner-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

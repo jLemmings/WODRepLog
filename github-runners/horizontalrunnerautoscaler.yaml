@@ -1,0 +1,15 @@
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: org-runners-autoscaler
+spec:
+  scaleTargetRef:
+    name: org-runners
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
+      organizationNames:
+        - jLemmings
+      scaleDownThreshold: 1
+      scaleUpThreshold: 2
