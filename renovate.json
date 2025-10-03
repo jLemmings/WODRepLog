@@ -28,8 +28,8 @@
         "gradle-plugin",
         "maven"
       ],
-      "matchPackageNames": [
-        "dev.flutter.flutter-plugin-loader"
+      "matchPackagePatterns": [
+        "^dev\\.flutter\\.flutter-plugin-loader"
       ],
       "enabled": false
     }
