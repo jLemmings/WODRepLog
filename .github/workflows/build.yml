@@ -1,13 +1,12 @@
-name: Build
+name: Build and Publish
 
 on:
   push:
-    branches: 
+    branches:
       - "master"
-      - "feature/**"
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     env:
       # Setup env variables that will be used throughout the workflow
@@ -19,6 +18,53 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v4
 
+      - name: Configure Git user
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump pubspec build number
+        id: bump_version
+        run: |
+          python <<'PY'
+from pathlib import Path
+import os
+import re
+
+pubspec = Path("pubspec.yaml")
+content = pubspec.read_text()
+match = re.search(r"^version:\s*(\d+\.\d+\.\d+)(?:\+(\d+))?", content, re.MULTILINE)
+if not match:
+    raise SystemExit("Unable to find version in pubspec.yaml")
+
+version_name = match.group(1)
+build_number = int(match.group(2) or 0) + 1
+new_line = f"version: {version_name}+{build_number}"
+
+updated = re.sub(r"^version:.*$", new_line, content, count=1, flags=re.MULTILINE)
+pubspec.write_text(updated)
+
+with open(os.environ["GITHUB_OUTPUT"], "w", encoding="utf-8") as fh:
+    fh.write(f"version_name={version_name}\n")
+    fh.write(f"version_code={build_number}\n")
+
+with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+    fh.write(f"VERSION_NAME={version_name}\n")
+    fh.write(f"VERSION_CODE={build_number}\n")
+PY
+
+      - name: Commit version bump
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          if git diff --quiet pubspec.yaml; then
+            echo "No version change detected"
+            exit 0
+          fi
+          git add pubspec.yaml
+          git commit -m "chore: bump pubspec build number [skip ci]"
+          git push
+
       # Setup Java in the VM
       - uses: actions/setup-java@v4
         with:
@@ -28,7 +74,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Setup Java in the VM
+      # Setup Flutter in the VM
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -42,46 +88,35 @@ jobs:
       - name: 🕵️ Analyze to check for bad Dart/Flutter practices
         run: flutter analyze
 
-      - name: 🕵️ flutter doctor --verbose
+      - name: 🩺 flutter doctor --verbose
         run: flutter doctor --verbose
 
-      # APK
-      - name: Build release apk bundle
-        run: flutter build apk --debug --split-per-abi
+      # Bundle
+      - name: Build release app bundle
+        run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
-      - name: Setup build tool version variable
-        shell: bash
-        run: |
-          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
-          echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
-          echo Last build tool version is: $BUILD_TOOL_VERSION
-
-      - name: Sign APK Bundle
+      - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
-        id: sign_apk
+        id: sign_app
         with:
-          releaseDirectory: build/app/outputs/flutter-apk/
+          releaseDirectory: build/app/outputs/bundle/release/
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
           alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
 
-      - name: Upload Signed APK Bundle
+      - name: Upload to Play Store (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: ch.joshuahemmings.wodreplog
+          releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
+          releaseName: ${{ env.VERSION_NAME }}
+          mappingFile: build/app/outputs/mapping/release/mapping.txt
+          track: internal
+
+      - name: Upload signed app bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk-bundle-v7a
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-debug-signed.apk
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle-v8a
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-debug-aligned.apk
-
-      - name: Upload Signed APK Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-apk-bundle-x86
-          path: build/app/outputs/flutter-apk/app-x86_64-debug-signed.apk
+          name: signed-appbundle
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}

@@ -26,6 +26,9 @@ flutter run
 - adb devices
 - bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
 
+### Continuous delivery
+Pushing to the `master` branch triggers the **Build and Publish** GitHub Actions workflow, which automatically increments the build number in `pubspec.yaml`, commits the change, builds a signed release app bundle, and publishes it to the Google Play internal testing track using the configured service account credentials.
+
 
 https://medium.com/lodgify-technology-blog/deploy-your-flutter-app-to-google-play-with-github-actions-f13a11c4492e
 https://tbrgroup.software/flutter-build-and-deploy-android-apps-using-github-actions/
