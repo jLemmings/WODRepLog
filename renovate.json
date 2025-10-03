@@ -2,5 +2,25 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "enabledManagers": [
+    "pub",
+    "gradle",
+    "gradle-wrapper"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "pub",
+        "gradle",
+        "gradle-wrapper"
+      ],
+      "groupName": "Flutter and Android dependencies",
+      "labels": [
+        "dependencies",
+        "flutter",
+        "android"
+      ]
+    }
   ]
 }
