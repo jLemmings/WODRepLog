@@ -1,6 +1,6 @@
 // android/build.gradle (project-level)
 
-// 1) Make groovy-xml resolvable for the buildscript itself
+// Make groovy-xml available to the buildscript
 buildscript {
     repositories {
         google()
@@ -12,7 +12,6 @@ buildscript {
     }
 }
 
-// (optional) You can keep the import here now that the buildscript classpath is set
 import groovy.util.XmlParser
 
 allprojects {
@@ -24,37 +23,36 @@ allprojects {
 
 rootProject.buildDir = "../build"
 
-subprojects {
+// ✅ Configure only after the Android plugins are applied — no afterEvaluate
+subprojects { project ->
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(":app")
 
-    afterEvaluate { project ->
-        if (project.plugins.hasPlugin("com.android.application") ||
-            project.plugins.hasPlugin("com.android.library")) {
+    // Application modules
+    plugins.withId("com.android.application") {
+        project.android {
+            // AGP 8+: "compileSdk" also works; keep this for compatibility
+            compileSdkVersion 34
+        }
+    }
 
-            project.android {
-                compileSdkVersion 34
-            }
+    // Library modules
+    plugins.withId("com.android.library") {
+        project.android {
+            compileSdkVersion 34
 
-            if (project.plugins.hasPlugin("com.android.library")) {
-                def currentNamespace = null
-                if (project.android.hasProperty("namespace")) {
-                    currentNamespace = project.android.namespace
-                }
-
-                if (!currentNamespace) {
-                    def manifestFile = project.file("src/main/AndroidManifest.xml")
-                    if (manifestFile.exists()) {
-                        try {
-                            // If you removed the import, use: new groovy.util.XmlParser(false, false)
-                            def manifest = new XmlParser(false, false).parse(manifestFile)
-                            def manifestPackage = manifest?.attributes()?.get("package")
-                            if (manifestPackage) {
-                                project.android.namespace = manifestPackage
-                            }
-                        } catch (Exception ignored) {
-                            // Best effort – namespace must be provided for AGP 8+.
+            // Set namespace from manifest if missing (best-effort)
+            def currentNamespace = project.android.hasProperty("namespace") ? project.android.namespace : null
+            if (!currentNamespace) {
+                def manifestFile = project.file("src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    try {
+                        def manifest = new XmlParser(false, false).parse(manifestFile)
+                        def manifestPackage = manifest?.attributes()?.get("package")
+                        if (manifestPackage) {
+                            project.android.namespace = manifestPackage
                         }
+                    } catch (Exception ignored) {
+                        // Best effort – namespace must be provided for AGP 8+.
                     }
                 }
             }
