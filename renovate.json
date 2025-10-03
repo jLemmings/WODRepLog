@@ -21,6 +21,16 @@
         "flutter",
         "android"
       ]
+    },
+    {
+      "description": "Ignore Flutter's internal Gradle plugin that is resolved from the local SDK.",
+      "matchDatasources": [
+        "gradle-plugin"
+      ],
+      "matchPackageNames": [
+        "dev.flutter.flutter-plugin-loader"
+      ],
+      "enabled": false
     }
   ]
 }
