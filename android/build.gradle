@@ -1,11 +1,19 @@
-import groovy.util.XmlParser
+// android/build.gradle (project-level)
 
+// 1) Make groovy-xml resolvable for the buildscript itself
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
     dependencies {
         classpath localGroovy()
         classpath "org.codehaus.groovy:groovy-xml:3.0.21"
     }
 }
+
+// (optional) You can keep the import here now that the buildscript classpath is set
+import groovy.util.XmlParser
 
 allprojects {
     repositories {
@@ -17,9 +25,13 @@ allprojects {
 rootProject.buildDir = "../build"
 
 subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(":app")
+
     afterEvaluate { project ->
         if (project.plugins.hasPlugin("com.android.application") ||
-                project.plugins.hasPlugin("com.android.library")) {
+            project.plugins.hasPlugin("com.android.library")) {
+
             project.android {
                 compileSdkVersion 34
             }
@@ -34,6 +46,7 @@ subprojects {
                     def manifestFile = project.file("src/main/AndroidManifest.xml")
                     if (manifestFile.exists()) {
                         try {
+                            // If you removed the import, use: new groovy.util.XmlParser(false, false)
                             def manifest = new XmlParser(false, false).parse(manifestFile)
                             def manifestPackage = manifest?.attributes()?.get("package")
                             if (manifestPackage) {
@@ -47,18 +60,6 @@ subprojects {
             }
         }
     }
-}
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(':app')
-}
-
-
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(":app")
 }
 
 tasks.register("clean", Delete) {
