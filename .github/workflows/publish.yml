@@ -17,10 +17,10 @@ jobs:
     steps:
       # Checkout repository codebase
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Setup Java in the VM
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: "temurin" # See 'Supported distributions' for available options
           java-version: ${{ env.JAVA_VERSION }}
