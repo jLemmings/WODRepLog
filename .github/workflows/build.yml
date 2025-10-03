@@ -16,7 +16,7 @@ jobs:
     steps:
       # Checkout repository codebase
       - name: Checkout the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure Git user
         if: github.actor != 'github-actions[bot]'
@@ -31,24 +31,24 @@ jobs:
             from pathlib import Path
             import os
             import re
-  
+
             pubspec = Path("pubspec.yaml")
             content = pubspec.read_text()
             match = re.search(r"^version:\s*(\d+\.\d+\.\d+)(?:\+(\d+))?", content, re.MULTILINE)
             if not match:
                 raise SystemExit("Unable to find version in pubspec.yaml")
-  
+
             version_name = match.group(1)
             build_number = int(match.group(2) or 0) + 1
             new_line = f"version: {version_name}+{build_number}"
   
             updated = re.sub(r"^version:.*$", new_line, content, count=1, flags=re.MULTILINE)
             pubspec.write_text(updated)
-  
+
             with open(os.environ["GITHUB_OUTPUT"], "w", encoding="utf-8") as fh:
                 fh.write(f"version_name={version_name}\n")
                 fh.write(f"version_code={build_number}\n")
-  
+
             with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
                 fh.write(f"VERSION_NAME={version_name}\n")
                 fh.write(f"VERSION_CODE={build_number}\n")
@@ -66,7 +66,7 @@ jobs:
           git push
 
       # Setup Java in the VM
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: "temurin" # See 'Supported distributions' for available options
           java-version: ${{ env.JAVA_VERSION }}
