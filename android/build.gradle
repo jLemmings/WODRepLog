@@ -1,5 +1,11 @@
 import groovy.util.XmlParser
 
+buildscript {
+    dependencies {
+        classpath localGroovy()
+    }
+}
+
 allprojects {
     repositories {
         google()
