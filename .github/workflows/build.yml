@@ -18,6 +18,9 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v5
 
+      - name: Check Groovy version
+        run: groovy -version
+
       - name: Configure Git user
         if: github.actor != 'github-actions[bot]'
         run: |
