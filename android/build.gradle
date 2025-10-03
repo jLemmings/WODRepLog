@@ -13,6 +13,7 @@ buildscript {
 }
 
 import groovy.util.XmlParser
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 allprojects {
     repositories {
@@ -54,6 +55,19 @@ subprojects { project ->
                     } catch (Exception ignored) {
                         // Best effort – namespace must be provided for AGP 8+.
                     }
+                }
+            }
+
+            // Ensure Java/Kotlin compilation targets stay aligned across all
+            // library modules (including third-party plugins).
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+
+            project.tasks.withType(KotlinCompile).configureEach { task ->
+                task.kotlinOptions {
+                    jvmTarget = "17"
                 }
             }
         }
