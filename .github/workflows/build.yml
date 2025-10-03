@@ -18,17 +18,52 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v4
 
-      - name: Extract version information from pubspec
+      - name: Configure Git user
+        if: github.actor != 'github-actions[bot]'
         run: |
-          VERSION_LINE=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
-          VERSION_NAME="${VERSION_LINE%%+*}"
-          VERSION_CODE="${VERSION_LINE##*+}"
-          if [ "$VERSION_CODE" = "$VERSION_LINE" ]; then
-            # Default version code to 1 when no build suffix is defined
-            VERSION_CODE=1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump pubspec build number
+        id: bump_version
+        run: |
+          python <<'PY'
+from pathlib import Path
+import os
+import re
+
+pubspec = Path("pubspec.yaml")
+content = pubspec.read_text()
+match = re.search(r"^version:\s*(\d+\.\d+\.\d+)(?:\+(\d+))?", content, re.MULTILINE)
+if not match:
+    raise SystemExit("Unable to find version in pubspec.yaml")
+
+version_name = match.group(1)
+build_number = int(match.group(2) or 0) + 1
+new_line = f"version: {version_name}+{build_number}"
+
+updated = re.sub(r"^version:.*$", new_line, content, count=1, flags=re.MULTILINE)
+pubspec.write_text(updated)
+
+with open(os.environ["GITHUB_OUTPUT"], "w", encoding="utf-8") as fh:
+    fh.write(f"version_name={version_name}\n")
+    fh.write(f"version_code={build_number}\n")
+
+with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+    fh.write(f"VERSION_NAME={version_name}\n")
+    fh.write(f"VERSION_CODE={build_number}\n")
+PY
+
+      - name: Commit version bump
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          if git diff --quiet pubspec.yaml; then
+            echo "No version change detected"
+            exit 0
           fi
-          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          git add pubspec.yaml
+          git commit -m "chore: bump pubspec build number [skip ci]"
+          git push
 
       # Setup Java in the VM
       - uses: actions/setup-java@v4
