@@ -3,11 +3,6 @@
   "extends": [
     "config:recommended"
   ],
-  "enabledManagers": [
-    "pub",
-    "gradle",
-    "gradle-wrapper"
-  ],
   "packageRules": [
     {
       "matchManagers": [
