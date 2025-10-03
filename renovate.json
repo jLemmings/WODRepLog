@@ -15,7 +15,8 @@
         "dependencies",
         "flutter",
         "android"
-      ]
+      ],
+      "rangeStrategy": "replace"
     },
     {
       "description": "Ignore Flutter's internal Gradle plugin that is resolved from the local SDK.",
