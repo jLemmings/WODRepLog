@@ -15,18 +15,24 @@ subprojects {
                 compileSdkVersion 34
             }
 
-            if (project.plugins.hasPlugin("com.android.library") &&
-                    !project.android.hasProperty("namespace")) {
-                def manifestFile = project.file("src/main/AndroidManifest.xml")
-                if (manifestFile.exists()) {
-                    try {
-                        def manifest = new XmlParser(false, false).parse(manifestFile)
-                        def manifestPackage = manifest?.attributes()?.get("package")
-                        if (manifestPackage) {
-                            project.android.namespace = manifestPackage
+            if (project.plugins.hasPlugin("com.android.library")) {
+                def currentNamespace = null
+                if (project.android.hasProperty("namespace")) {
+                    currentNamespace = project.android.namespace
+                }
+
+                if (!currentNamespace) {
+                    def manifestFile = project.file("src/main/AndroidManifest.xml")
+                    if (manifestFile.exists()) {
+                        try {
+                            def manifest = new XmlParser(false, false).parse(manifestFile)
+                            def manifestPackage = manifest?.attributes()?.get("package")
+                            if (manifestPackage) {
+                                project.android.namespace = manifestPackage
+                            }
+                        } catch (Exception ignored) {
+                            // Best effort – namespace must be provided for AGP 8+.
                         }
-                    } catch (Exception ignored) {
-                        // Best effort – namespace must be provided for AGP 8+.
                     }
                 }
             }
