@@ -18,6 +18,15 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v5
 
+      - name: Install Groovy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y groovy
+
+      - name: Check Groovy version
+        run: |
+          groovy -version
+
       - name: Configure Git user
         if: github.actor != 'github-actions[bot]'
         run: |
