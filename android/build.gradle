@@ -24,7 +24,7 @@ allprojects {
 
 rootProject.buildDir = "../build"
 
-// ✅ Configure only after the Android plugins are applied — no afterEvaluate
+// Configure only after the Android plugins are applied (no afterEvaluate)
 subprojects { project ->
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 
@@ -40,6 +40,9 @@ subprojects { project ->
     plugins.withId("com.android.library") {
         project.android {
             compileSdkVersion 34
+            if (project.android.hasProperty("compileSdk")) {
+                project.android.compileSdk = 34
+            }
 
             // Set namespace from manifest if missing (best-effort)
             def currentNamespace = project.android.hasProperty("namespace") ? project.android.namespace : null
@@ -53,7 +56,7 @@ subprojects { project ->
                             project.android.namespace = manifestPackage
                         }
                     } catch (Exception ignored) {
-                        // Best effort – namespace must be provided for AGP 8+.
+                        // Best effort; namespace must be provided for AGP 8+.
                     }
                 }
             }
@@ -66,9 +69,20 @@ subprojects { project ->
             }
 
             project.tasks.withType(KotlinCompile).configureEach { task ->
+                def target = project.android?.compileOptions?.targetCompatibility ?: JavaVersion.VERSION_17
                 task.kotlinOptions {
-                    jvmTarget = "17"
+                    jvmTarget = target.toString()
                 }
+            }
+        }
+    }
+
+    project.afterEvaluate {
+        def androidExt = project.extensions.findByName("android")
+        if (androidExt != null) {
+            androidExt.compileSdkVersion 34
+            if (androidExt.hasProperty("compileSdk")) {
+                androidExt.compileSdk = 34
             }
         }
     }

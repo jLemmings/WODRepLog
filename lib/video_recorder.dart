@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:path/path.dart' as path;
-import 'package:gallery_saver/gallery_saver.dart';
+import 'package:gallery_saver_plus/gallery_saver.dart';
 
 class VideoRecorder extends StatefulWidget {
   const VideoRecorder({super.key});
