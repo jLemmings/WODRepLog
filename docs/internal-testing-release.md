@@ -1,0 +1,13 @@
+# Internal Testing Release Branch
+
+This branch was created to prepare the current development build for internal testing and now automatically publishes internal builds when changes land on `master`.
+
+## Purpose
+- Merge the latest changes from the `dev` branch.
+- Prepare the build for distribution through internal App Store / TestFlight channels.
+- Ensure that any public release increments the application version before being merged into `master`.
+
+## Next Steps
+1. Review and merge any outstanding changes from `dev` into this branch.
+2. Push changes that are ready for internal testing to `master`; the GitHub Actions publish pipeline will automatically ship the build to the Google Play internal testing track.
+3. To prepare a public release, bump the app version, merge the changes into the `release` branch, and allow the pipeline to publish to production on the Google Play Store.
