@@ -6,6 +6,10 @@ on:
       - master
       - release
 
+concurrency:
+  group: publish-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -78,7 +82,9 @@ jobs:
             exit 1
           fi
 
-          if [ "$GITHUB_REF" = "refs/heads/release" ]; then
+          REF_NAME="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
+
+          if [ "$REF_NAME" = "release" ]; then
             BUILD_NUMBER=$(( BASE * 1000 + 999 ))
             echo "track=production" >> "$GITHUB_OUTPUT"
             echo "status=completed" >> "$GITHUB_OUTPUT"
@@ -90,6 +96,7 @@ jobs:
           fi
 
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Using track '$REF_NAME' with build number '$BUILD_NUMBER'" >&2
 
       # Bundle
       - name: Build release app bundle
