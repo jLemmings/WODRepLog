@@ -1,8 +1,9 @@
-name: Publish
+name: Publish Testing
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - "master"
 
 jobs:
   build:
@@ -18,15 +19,6 @@ jobs:
       # Checkout repository codebase
       - name: Checkout the code
         uses: actions/checkout@v5
-
-      - name: Install Groovy
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y groovy
-
-      - name: Check Groovy version
-        run: |
-          groovy -version
 
       # Setup Java in the VM
       - uses: actions/setup-java@v5
