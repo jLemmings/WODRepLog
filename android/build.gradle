@@ -8,7 +8,7 @@ buildscript {
     }
     dependencies {
         classpath localGroovy()
-        classpath "org.codehaus.groovy:groovy-xml:3.0.21"
+        classpath "org.codehaus.groovy:groovy-xml:3.0.25"
     }
 }
 
