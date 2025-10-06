@@ -6,15 +6,22 @@ import 'package:camera/camera.dart';
 import 'package:path/path.dart' as path;
 import 'package:gallery_saver_plus/gallery_saver.dart';
 
+import 'utils/time_utils.dart';
+
 class VideoRecorder extends StatefulWidget {
-  const VideoRecorder({super.key});
+  const VideoRecorder({super.key, this.camera});
+
+  final CameraDescription? camera;
 
   @override
   VideoRecorderState createState() => VideoRecorderState();
 }
 
 class VideoRecorderState extends State<VideoRecorder> {
-  late CameraController _controller;
+  CameraController? _controller;
+  bool get _hasController =>
+      _controller != null && _controller!.value.isInitialized;
+  String? _initializationError;
   bool _isRecording = false;
   final bool _showTimer = false;
   String competitionName = '';
@@ -41,7 +48,7 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     _timer?.cancel();
 
     // Reset orientation and show system UI when leaving the camera view
@@ -55,14 +62,45 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   Future<void> _initializeCamera() async {
     try {
-      final cameras = await availableCameras();
-      final camera = cameras.first;
-      _controller = CameraController(camera, ResolutionPreset.high);
-      await _controller.initialize();
-      if (!mounted) return;
-      setState(() {});
+      final camera = await _obtainCamera();
+      if (camera == null) {
+        setState(() {
+          _initializationError = 'No available camera detected.';
+        });
+        return;
+      }
+
+      final controller = CameraController(camera, ResolutionPreset.high);
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+
+      setState(() {
+        _controller = controller;
+        _initializationError = null;
+      });
+    } on CameraException catch (e) {
+      setState(() {
+        _initializationError = 'Failed to initialize camera: ${e.description ?? e.code}';
+      });
     } catch (e) {
-      _showErrorSnackBar('Failed to initialize camera: $e');
+      setState(() {
+        _initializationError = 'Failed to initialize camera: $e';
+      });
+    }
+  }
+
+  Future<CameraDescription?> _obtainCamera() async {
+    if (widget.camera != null) {
+      return widget.camera;
+    }
+    try {
+      final cameras = await availableCameras();
+      return cameras.isNotEmpty ? cameras.first : null;
+    } on CameraException {
+      return null;
     }
   }
 
@@ -85,10 +123,14 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _startRecording() async {
-    if (!_controller.value.isInitialized) return;
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      _showErrorSnackBar('Camera not ready for recording.');
+      return;
+    }
 
     try {
-      await _controller.startVideoRecording();
+      await controller.startVideoRecording();
       setState(() {
         _isRecording = true;
       });
@@ -101,10 +143,13 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_controller.value.isInitialized || !_isRecording) return;
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || !_isRecording) {
+      return;
+    }
 
     try {
-      final XFile videoFile = await _controller.stopVideoRecording();
+      final XFile videoFile = await controller.stopVideoRecording();
       setState(() {
         _isRecording = false;
       });
@@ -238,33 +283,58 @@ class VideoRecorderState extends State<VideoRecorder> {
     );
   }
 
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
+  String _formatTime(int seconds) => formatSeconds(seconds);
 
   @override
   Widget build(BuildContext context) {
-    if (!_controller.value.isInitialized) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+    if (!_hasController) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: _initializationError != null
+              ? Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.videocam_off,
+                        size: 72,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _initializationError!,
+                        style: const TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _initializeCamera,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : const CircularProgressIndicator(),
+        ),
       );
     }
+
+    final controller = _controller!;
 
     return Scaffold(
       body: Stack(
         children: [
           Center(
-            // Center the FittedBox horizontally with a 180-degree rotation
             child: Transform.rotate(
               angle: 3.14159, // 180 degrees in radians
               child: FittedBox(
                 fit: BoxFit.cover,
                 child: SizedBox(
-                  width: _controller.value.previewSize!.width,
-                  height: _controller.value.previewSize!.height,
-                  child: CameraPreview(_controller),
+                  width: controller.value.previewSize!.width,
+                  height: controller.value.previewSize!.height,
+                  child: CameraPreview(controller),
                 ),
               ),
             ),
@@ -313,7 +383,8 @@ class VideoRecorderState extends State<VideoRecorder> {
             bottom: 16,
             left: MediaQuery.of(context).size.width / 2 - 28,
             child: FloatingActionButton(
-              onPressed: _isRecording ? _stopRecording : _startRecording,
+              onPressed:
+                  _isRecording ? _stopRecording : (_hasController ? _startRecording : null),
               child: Icon(_isRecording ? Icons.stop : Icons.videocam),
             ),
           ),

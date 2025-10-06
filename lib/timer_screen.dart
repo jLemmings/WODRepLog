@@ -1,170 +1,79 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:audioplayers/audioplayers.dart'; // Import audioplayers
+
+import 'package:flutter/material.dart';
+
 import 'clock_painter.dart';
+import 'services/interval_timer_controller.dart';
+import 'services/sound_service.dart';
+import 'utils/time_utils.dart';
 
 class TimerScreen extends StatefulWidget {
-  final int duration;
-  final int? interval;
-  final int? rounds;
-
   const TimerScreen({
     super.key,
     required this.duration,
     this.interval,
     this.rounds,
+    this.countdownSeconds = 3,
   });
+
+  final int duration;
+  final int? interval;
+  final int? rounds;
+  final int countdownSeconds;
+
+  Duration get _workDuration => Duration(seconds: duration);
+
+  Duration? get _restDuration =>
+      interval != null && interval! > 0 ? Duration(seconds: interval!) : null;
+
+  int get _totalRounds => rounds ?? 1;
 
   @override
   TimerScreenState createState() => TimerScreenState();
 }
 
-class TimerScreenState extends State<TimerScreen>
-    with SingleTickerProviderStateMixin {
-  late int _currentRound;
-  late int _currentTime;
-  late int _remainingTime;
-  Timer? _timer;
-  Timer? _countdownTimer;
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  bool _isRunning = false;
-  bool _isPaused = false;
-  bool _isWorkInterval = true;
-  int _countdown = 3; // Countdown duration in seconds
-  bool _isCountdownActive = true;
-  late AudioPlayer _countdownPlayer; // AudioPlayer instance for countdown
-  late AudioPlayer _startPlayer; // AudioPlayer instance for start beep
+class TimerScreenState extends State<TimerScreen> {
+  late final IntervalTimerController _timerController;
+  late final SoundService _soundService;
+  IntervalTimerState? _previousState;
 
   @override
   void initState() {
     super.initState();
-    _currentRound = 1;
-    _currentTime = widget.duration;
-    _remainingTime = widget.duration;
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: widget.duration),
-    )..repeat(reverse: false);
-
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
-
-    _countdownPlayer = AudioPlayer(); // Initialize AudioPlayer for countdown
-    _startPlayer = AudioPlayer(); // Initialize AudioPlayer for start beep
-
-    // Load beep sounds
-    _countdownPlayer
-        .setSource(AssetSource('beep.wav')); // Load beep sound for countdown
-    _startPlayer.setSource(AssetSource('beep.wav')); // Load start beep sound
-
-    _startCountdown(); // Start the countdown immediately
+    _soundService = SoundService();
+    _timerController = IntervalTimerController(
+      workDuration: widget._workDuration,
+      restDuration: widget._restDuration,
+      totalRounds: widget._totalRounds,
+      countdownSeconds: widget.countdownSeconds,
+    )..addListener(_handleTimerUpdate);
+    _timerController.start();
   }
 
-  void _startMainTimer() {
-    setState(() {
-      _isRunning = true;
-      _isPaused = false;
-      _isCountdownActive = false;
-    });
+  void _handleTimerUpdate() {
+    final state = _timerController.state;
+    final previous = _previousState;
 
-    _controller.reset();
-    _controller.duration = Duration(seconds: widget.duration);
-    _controller.forward();
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_remainingTime > 0) {
-          _remainingTime--;
-          _currentTime = _remainingTime;
-        } else if (widget.interval != null && _isWorkInterval) {
-          _remainingTime = widget.interval!;
-          _currentTime = _remainingTime;
-          _isWorkInterval = false;
-        } else if (widget.rounds != null && _currentRound < widget.rounds!) {
-          _currentRound++;
-          _remainingTime = widget.duration;
-          _currentTime = _remainingTime;
-          _isWorkInterval = true;
-        } else {
-          _timer?.cancel();
-          _isRunning = false;
-          _controller.stop();
-        }
-      });
-    });
-  }
-
-  void _startCountdown() {
-    setState(() {
-      _isCountdownActive = true;
-      _countdown = 3; // Reset countdown to 3 seconds
-    });
-
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_countdown > 0) {
-        setState(() {
-          _countdown--;
-        });
-        _countdownPlayer
-            .play(AssetSource('beep.wav')); // Play beep sound every second
-      } else {
-        timer.cancel();
-        _playStartBeep(); // Play a louder and longer beep when timer starts
-        _startMainTimer();
+    if (state.phase == TimerPhase.countdown && state.countdown > 0 && state.isRunning) {
+      if (previous == null || previous.countdown != state.countdown) {
+        unawaited(_soundService.playCountdownBeep());
       }
-    });
-  }
+    } else if (state.phase == TimerPhase.work && state.isRunning &&
+        (previous == null || previous.phase != TimerPhase.work)) {
+      unawaited(_soundService.playStartBeep());
+    } else if (state.phase == TimerPhase.rest && state.isRunning &&
+        (previous == null || previous.phase != TimerPhase.rest)) {
+      unawaited(_soundService.playRestBeep());
+    }
 
-  void _playStartBeep() async {
-    _startPlayer.play(AssetSource('start_beep.wav')); // Play start beep sound
-    await Future.delayed(
-        const Duration(seconds: 2)); // Play for 2 seconds or as needed
-    _startPlayer.stop(); // Stop playing after duration
-  }
-
-  void _pauseTimer() {
-    setState(() {
-      _isPaused = true;
-      _timer?.cancel();
-      _controller.stop();
-      _countdownTimer?.cancel();
-    });
-  }
-
-  void _resumeTimer() {
-    setState(() {
-      _isPaused = false;
-      _startMainTimer();
-    });
-  }
-
-  void _resetTimer() {
-    setState(() {
-      _timer?.cancel();
-      _isRunning = false;
-      _isPaused = false;
-      _isCountdownActive = false;
-      _remainingTime = widget.duration;
-      _currentTime = _remainingTime;
-      _countdown = 3;
-      _controller.reset();
-      _countdownTimer?.cancel();
-    });
-  }
-
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    _previousState = state;
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
-    _countdownTimer?.cancel();
-    _countdownPlayer.dispose(); // Dispose countdown player
-    _startPlayer.dispose(); // Dispose start beep player
+    _timerController.removeListener(_handleTimerUpdate);
+    _timerController.dispose();
+    unawaited(_soundService.dispose());
     super.dispose();
   }
 
@@ -172,52 +81,188 @@ class TimerScreenState extends State<TimerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: const Text('Timer')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            if (_isCountdownActive)
-              Text(
-                'Starting in $_countdown...',
-                style: const TextStyle(fontSize: 32),
-                textAlign: TextAlign.center,
-              )
-            else
-              CustomPaint(
-                painter: ClockPainter(progress: _animation.value),
-                size: const Size(200, 200),
-              ),
-            const SizedBox(height: 20),
-            if (!_isCountdownActive)
-              Text(
-                'Time: ${_formatTime(_currentTime)}\nRound: $_currentRound/${widget.rounds ?? 1}',
-                style: const TextStyle(fontSize: 32),
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 20),
-            if (_isRunning)
-              Row(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Timer'),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _timerController,
+            builder: (context, _) {
+              final state = _timerController.state;
+              return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ElevatedButton(
-                    onPressed: _isPaused ? _resumeTimer : _pauseTimer,
-                    child: Text(_isPaused ? 'Resume' : 'Pause'),
-                  ),
-                  const SizedBox(width: 20),
-                  ElevatedButton(
-                    onPressed: _resetTimer,
-                    child: const Text('Reset'),
-                  ),
+                  if (state.phase == TimerPhase.countdown &&
+                      state.countdown > 0)
+                    _buildCountdown(state)
+                  else if (state.isComplete)
+                    _buildCompleteState()
+                  else
+                    _buildTimerDial(state),
+                  const SizedBox(height: 24),
+                  _buildTimerDetails(state),
+                  const SizedBox(height: 32),
+                  _buildControls(state),
                 ],
-              ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildCountdown(IntervalTimerState state) {
+    return Column(
+      children: [
+        Text(
+          'Starting in',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          state.countdown.toString(),
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompleteState() {
+    return Column(
+      children: [
+        Icon(
+          Icons.check_circle,
+          size: 120,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Workout complete!',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimerDial(IntervalTimerState state) {
+    return CustomPaint(
+      painter: ClockPainter(
+        progress: state.progress,
+        color: _phaseColor(context, state.phase),
+      ),
+      size: const Size(220, 220),
+    );
+  }
+
+  Widget _buildTimerDetails(IntervalTimerState state) {
+    if (state.isComplete) {
+      return Text(
+        'Great job! Tap restart to go again.',
+        style: Theme.of(context).textTheme.titleMedium,
+        textAlign: TextAlign.center,
+      );
+    }
+
+    final durationText = formatDuration(state.remaining);
+    final roundText = 'Round: ${state.currentRound}/${state.totalRounds}';
+    final phaseText = _phaseLabel(state.phase);
+
+    return Column(
+      children: [
+        Text(
+          phaseText,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          durationText,
+          style: Theme.of(context).textTheme.displaySmall,
+        ),
+        if (state.totalRounds > 1) ...[
+          const SizedBox(height: 8),
+          Text(
+            roundText,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _resetTimer() {
+    _previousState = null;
+    _timerController.reset();
+  }
+
+  void _restartTimer() {
+    _resetTimer();
+    _timerController.start();
+  }
+
+  Widget _buildControls(IntervalTimerState state) {
+    if (state.isComplete) {
+      return ElevatedButton(
+        onPressed: _restartTimer,
+        child: const Text('Restart'),
+      );
+    }
+
+    if (!state.isRunning && !state.isPaused) {
+      return ElevatedButton(
+        onPressed: _timerController.start,
+        child: const Text('Start'),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton(
+          onPressed: state.isPaused ? _timerController.resume : _timerController.pause,
+          child: Text(state.isPaused ? 'Resume' : 'Pause'),
+        ),
+        const SizedBox(width: 16),
+        OutlinedButton(
+          onPressed: _resetTimer,
+          child: const Text('Reset'),
+        ),
+      ],
+    );
+  }
+
+  String _phaseLabel(TimerPhase phase) {
+    switch (phase) {
+      case TimerPhase.work:
+        return 'Work';
+      case TimerPhase.rest:
+        return 'Rest';
+      case TimerPhase.complete:
+        return 'Completed';
+      case TimerPhase.countdown:
+        return 'Get ready';
+    }
+  }
+
+  Color _phaseColor(BuildContext context, TimerPhase phase) {
+    final scheme = Theme.of(context).colorScheme;
+    switch (phase) {
+      case TimerPhase.work:
+        return scheme.primary;
+      case TimerPhase.rest:
+        return scheme.secondary;
+      case TimerPhase.countdown:
+        return scheme.tertiary;
+      case TimerPhase.complete:
+        return scheme.primary;
+    }
   }
 }

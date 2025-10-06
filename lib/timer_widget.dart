@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'clock_painter.dart';
 import 'dart:async';
 
+import 'utils/time_utils.dart';
+
 class TimerWidget extends StatefulWidget {
   final int duration;
   final int? interval;
@@ -81,12 +83,6 @@ class TimerWidgetState extends State<TimerWidget>
     });
   }
 
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
   @override
   void dispose() {
     _timer?.cancel();
@@ -105,7 +101,7 @@ class TimerWidgetState extends State<TimerWidget>
         ),
         const SizedBox(height: 20),
         Text(
-          'Time: ${_formatTime(_currentTime)}\nRound: $_currentRound/${widget.rounds ?? 1}',
+          'Time: ${formatSeconds(_currentTime)}\nRound: $_currentRound/${widget.rounds ?? 1}',
           style: const TextStyle(fontSize: 32),
           textAlign: TextAlign.center,
         ),

@@ -4,9 +4,9 @@ import 'home_screen.dart';
 import 'package:camera/camera.dart';
 
 class SplashScreen extends StatefulWidget {
-  final CameraDescription camera;
+  final CameraDescription? camera;
 
-  const SplashScreen({super.key, required this.camera});
+  const SplashScreen({super.key, this.camera});
 
   @override
   SplashScreenState createState() => SplashScreenState();

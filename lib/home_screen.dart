@@ -4,9 +4,9 @@ import 'timer_view.dart';
 import 'package:camera/camera.dart';
 
 class HomeScreen extends StatelessWidget {
-  final CameraDescription camera;
+  final CameraDescription? camera;
 
-  const HomeScreen({super.key, required this.camera});
+  const HomeScreen({super.key, this.camera});
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +27,34 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const VideoRecorder()),
-                );
-              },
-              child: const Text('Go to Video Recorder'),
+              onPressed: camera == null
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VideoRecorder(camera: camera!),
+                        ),
+                      );
+                    },
+              child: Text(
+                camera == null
+                    ? 'Camera unavailable'
+                    : 'Go to Video Recorder',
+              ),
             ),
+            if (camera == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Text(
+                  'Video recording requires a supported camera.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
