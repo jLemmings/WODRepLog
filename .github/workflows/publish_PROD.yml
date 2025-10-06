@@ -11,13 +11,31 @@ jobs:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
       FLUTTER_VERSION: 3.35.5
-      VERSION_NAME: ${{ github.event.release.tag_name }}
-      VERSION_CODE: ${{github.run_number}}
 
     steps:
       # Checkout repository codebase
       - name: Checkout the code
         uses: actions/checkout@v5
+
+      - name: Read version from pubspec
+        run: |
+          version=$(grep '^version:' pubspec.yaml | awk '{print $2}' | tr -d '\r')
+          if [ -z "$version" ]; then
+            echo 'Unable to locate version in pubspec.yaml' >&2
+            exit 1
+          fi
+          echo "VERSION_NAME=$version" >> "$GITHUB_ENV"
+          if [[ "$version" == *"+"* ]]; then
+            build_suffix=${version#*+}
+          else
+            echo 'pubspec version must include a build number suffix (e.g. 1.2.3+4).' >&2
+            exit 1
+          fi
+          if [[ ! "$build_suffix" =~ ^[0-9]+$ ]]; then
+            echo "Build number must be numeric, got: $build_suffix" >&2
+            exit 1
+          fi
+          echo "VERSION_CODE=$build_suffix" >> "$GITHUB_ENV"
 
       # Setup Java in the VM
       - uses: actions/setup-java@v5
@@ -65,6 +83,6 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ch.joshuahemmings.wodreplog
           releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
-          releaseName: ${{ github.event.release.tag_name }}
+          releaseName: ${{ env.VERSION_NAME }}
           mappingFile: build/app/outputs/mapping/release/mapping.txt
           track: internal

@@ -36,16 +36,19 @@ jobs:
           else
             new_build_number=1
           fi
+          github_run_number=${GITHUB_RUN_NUMBER:-0}
+          if [[ "$github_run_number" =~ ^[0-9]+$ ]] && (( github_run_number > new_build_number )); then
+            new_build_number=$github_run_number
+          fi
+          min_build_number=1000
+          if (( new_build_number < min_build_number )); then
+            new_build_number=$min_build_number
+          fi
           new_version="${major}.${minor}.${patch}+${new_build_number}"
           echo "Bumping version: ${current_version} -> ${new_version}"
           sed -i "s/^version: .*/version: ${new_version}/" pubspec.yaml
           echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
           echo "new_build_number=${new_build_number}" >> "$GITHUB_OUTPUT"
-
-      - name: Export version to environment
-        run: |
-          echo "VERSION_NAME=${{ steps.bump_version.outputs.new_version }}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${{ steps.bump_version.outputs.new_build_number }}" >> "$GITHUB_ENV"
 
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v6
