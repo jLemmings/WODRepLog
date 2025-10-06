@@ -1,7 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'splash_screen.dart';
-import 'theme.dart'; // Import the theme file
+import 'home_screen.dart';
+import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +20,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Video Recorder App',
-      theme: AppTheme.lightTheme, // Light theme (optional)
-      darkTheme: AppTheme.darkTheme, // Dark theme
-      themeMode: ThemeMode.dark, // Set dark theme by default
-      home: SplashScreen(camera: camera), // Start with the SplashScreen
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
+      home: HomeScreen(camera: camera),
     );
   }
 }

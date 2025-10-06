@@ -2,7 +2,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'build_config.dart';
 import 'timer_view.dart';
 import 'video_recorder.dart';
 
@@ -38,45 +37,59 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const VideoRecorder()),
-                );
-              },
-              child: const Text('Go to Video Recorder'),
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const VideoRecorder(),
+                        ),
+                      );
+                    },
+                    child: const Text('Go to Video Recorder'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TimerView(),
+                        ),
+                      );
+                    },
+                    child: const Text('Go to Timer View'),
+                  ),
+                ],
+              ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const TimerView()),
-                );
-              },
-              child: const Text('Go to Timer View'),
-            ),
-            if (kShowVersionBanner)
-              Padding(
-                padding: const EdgeInsets.only(top: 32),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24),
                 child: FutureBuilder<String>(
                   future: _versionLabel,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox.shrink();
-                    }
-
                     final theme = Theme.of(context);
                     final outlineColor = theme.colorScheme.outline;
                     final textStyle = theme.textTheme.bodySmall?.copyWith(
                           color: outlineColor,
                         ) ??
                         TextStyle(color: outlineColor, fontSize: 12);
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SizedBox(
+                        height: (textStyle.fontSize ?? 12) + 4,
+                      );
+                    }
 
                     if (snapshot.hasError || !snapshot.hasData) {
                       return Text('Version unavailable', style: textStyle);
@@ -89,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+            ),
           ],
         ),
       ),
