@@ -41,7 +41,7 @@ jobs:
         run: echo "VERSION_NAME=${{ steps.bump_version.outputs.new_version }}" >> "$GITHUB_ENV"
 
       - name: Commit version bump
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: chore: bump test build version to ${{ steps.bump_version.outputs.new_version }} [skip ci]
           branch: ${{ github.ref_name }}
