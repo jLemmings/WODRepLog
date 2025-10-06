@@ -1,30 +1,48 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'home_screen.dart';
+
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  final CameraDescription camera;
+  const SplashScreen({
+    super.key,
+    required this.camera,
+    this.cameraError,
+  });
 
-  const SplashScreen({super.key, required this.camera});
+  final CameraDescription? camera;
+  final String? cameraError;
 
   @override
   SplashScreenState createState() => SplashScreenState();
 }
 
 class SplashScreenState extends State<SplashScreen> {
+  Timer? _navigationTimer;
+
   @override
   void initState() {
     super.initState();
 
-    // Navigate to HomeScreen after 3 seconds
-    Timer(const Duration(seconds: 3), () {
+    _navigationTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => HomeScreen(camera: widget.camera),
+          builder: (context) => HomeScreen(
+            camera: widget.camera,
+            cameraError: widget.cameraError,
+          ),
         ),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _navigationTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -45,6 +63,20 @@ class SplashScreenState extends State<SplashScreen> {
               'WODRepLog',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+            if (widget.cameraError != null) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  widget.cameraError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ]
           ],
         ),
       ),
