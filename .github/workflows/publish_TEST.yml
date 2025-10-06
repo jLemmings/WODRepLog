@@ -85,6 +85,7 @@ jobs:
         run: |
           flutter build appbundle \
             --release \
+            --dart-define=SHOW_VERSION=true \
             --build-number=${{ steps.bump_version.outputs.new_build_number }} \
             --build-name=${{ steps.bump_version.outputs.new_version }}
 
