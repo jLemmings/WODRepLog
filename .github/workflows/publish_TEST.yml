@@ -43,7 +43,7 @@ jobs:
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: chore: bump test build version to ${{ steps.bump_version.outputs.new_version }} [skip ci]
+          commit_message: "chore: bump test build version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
           branch: ${{ github.ref_name }}
           file_pattern: pubspec.yaml
 
