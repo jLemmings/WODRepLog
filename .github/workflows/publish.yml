@@ -1,8 +1,10 @@
-name: Publish
+name: Publish Android Tracks
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - master
+      - release
 
 jobs:
   build:
@@ -11,8 +13,6 @@ jobs:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
       FLUTTER_VERSION: 3.35.5
-      VERSION_NAME: ${{ github.event.release.tag_name }}
-      VERSION_CODE: ${{github.run_number}}
 
     steps:
       # Checkout repository codebase
@@ -54,9 +54,46 @@ jobs:
       - name: 🕵️ flutter doctor --verbose
         run: flutter doctor --verbose
 
+      - name: Extract version from pubspec.yaml
+        id: app_version
+        run: |
+          set -eo pipefail
+          VERSION_VALUE=$(grep '^version:' pubspec.yaml | head -n 1 | sed 's/version:[[:space:]]*//')
+          VERSION_NAME=${VERSION_VALUE%%+*}
+          if [[ "$VERSION_VALUE" == *"+"* ]]; then
+            BASE_VERSION_CODE=${VERSION_VALUE##*+}
+          else
+            BASE_VERSION_CODE=${GITHUB_RUN_NUMBER}
+          fi
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "base_version_code=$BASE_VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Determine Play Store track and build number
+        id: track
+        run: |
+          set -eo pipefail
+          BASE=${{ steps.app_version.outputs.base_version_code }}
+          if ! [[ "$BASE" =~ ^[0-9]+$ ]]; then
+            echo "Base version code '$BASE' must be numeric" >&2
+            exit 1
+          fi
+
+          if [ "$GITHUB_REF" = "refs/heads/release" ]; then
+            BUILD_NUMBER=$(( BASE * 1000 + 999 ))
+            echo "track=production" >> "$GITHUB_OUTPUT"
+            echo "status=completed" >> "$GITHUB_OUTPUT"
+          else
+            OFFSET=$(( (GITHUB_RUN_NUMBER % 998) + 1 ))
+            BUILD_NUMBER=$(( BASE * 1000 + OFFSET ))
+            echo "track=internal" >> "$GITHUB_OUTPUT"
+            echo "status=completed" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+
       # Bundle
       - name: Build release app bundle
-        run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
+        run: flutter build appbundle --release --build-number=${{ steps.track.outputs.build_number }} --build-name=${{ steps.app_version.outputs.version_name }}
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
@@ -68,12 +105,13 @@ jobs:
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
 
-      - name: Upload to Play Store (Internal Testing)
+      - name: Upload to Play Store
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ch.joshuahemmings.wodreplog
           releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
-          releaseName: ${{ github.event.release.tag_name }}
+          releaseName: ${{ steps.app_version.outputs.version_name }}
           mappingFile: build/app/outputs/mapping/release/mapping.txt
-          track: internal
+          track: ${{ steps.track.outputs.track }}
+          status: ${{ steps.track.outputs.status }}
