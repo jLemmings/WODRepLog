@@ -1,29 +1,56 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+
 import 'splash_screen.dart';
-import 'theme.dart'; // Import the theme file
+import 'theme.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final cameras = await availableCameras();
-  final firstCamera = cameras.first;
 
-  runApp(MyApp(camera: firstCamera));
+  CameraDescription? camera;
+  String? cameraError;
+
+  try {
+    final cameras = await availableCameras();
+    if (cameras.isNotEmpty) {
+      camera = cameras.first;
+    } else {
+      cameraError = 'No cameras available on this device.';
+    }
+  } on CameraException catch (error) {
+    cameraError = error.description ?? error.code;
+  } catch (error) {
+    cameraError = error.toString();
+  }
+
+  runApp(MyApp(
+    camera: camera,
+    cameraError: cameraError,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  final CameraDescription camera;
+  const MyApp({
+    super.key,
+    required this.camera,
+    this.cameraError,
+  });
 
-  const MyApp({super.key, required this.camera});
+  final CameraDescription? camera;
+  final String? cameraError;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Video Recorder App',
-      theme: AppTheme.lightTheme, // Light theme (optional)
-      darkTheme: AppTheme.darkTheme, // Dark theme
-      themeMode: ThemeMode.dark, // Set dark theme by default
-      home: SplashScreen(camera: camera), // Start with the SplashScreen
+      title: 'WODRepLog',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
+      home: SplashScreen(
+        camera: camera,
+        cameraError: cameraError,
+      ),
     );
   }
 }
