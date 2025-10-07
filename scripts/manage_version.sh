@@ -9,7 +9,7 @@ Usage: manage_version.sh <command> [args]
 
 Commands:
   increment-build           Increment build number (suffix after '+') in pubspec.yaml
-  release <version>         Set version to <version> (major.minor.patch) with build number reset to 1
+  release <version>         Set version to <version> (major.minor.patch) and ensure build number increases
 USAGE
 }
 
@@ -29,6 +29,20 @@ read_current_version() {
     exit 1
   fi
   echo "$current"
+}
+
+extract_build_number() {
+  local version=$1
+  if [[ $version == *+* ]]; then
+    local suffix=${version#*+}
+    if [[ $suffix =~ ^[0-9]+$ ]]; then
+      echo "$suffix"
+      return
+    fi
+    echo "Build number must be numeric, got '$suffix'" >&2
+    exit 1
+  fi
+  echo "0"
 }
 
 write_version() {
@@ -68,15 +82,10 @@ increment_build() {
   current=$(read_current_version)
   if [[ "$current" == *+* ]]; then
     core=${current%%+*}
-    build=${current#*+}
   else
     core=$current
-    build="0"
   fi
-  if [[ ! $build =~ ^[0-9]+$ ]]; then
-    echo "Build number must be numeric, got '$build'" >&2
-    exit 1
-  fi
+  build=$(extract_build_number "$current")
   local new_build=$((build + 1))
   local new_version="${core}+${new_build}"
   write_version "$new_version"
@@ -91,7 +100,16 @@ set_release_version() {
     echo "Release version must match 'major.minor.patch', got '$1'" >&2
     exit 1
   fi
-  local new_build=1
+  local current=$(read_current_version)
+  local existing_build=$(extract_build_number "$current")
+  local new_build=$((existing_build + 1))
+  local run_number=${GITHUB_RUN_NUMBER:-}
+  if [[ $run_number =~ ^[0-9]+$ && $run_number -gt $new_build ]]; then
+    new_build=$run_number
+  fi
+  if (( new_build < 1 )); then
+    new_build=1
+  fi
   local new_version="${release_version}+${new_build}"
   write_version "$new_version"
   emit_outputs "$new_version" "$new_build" "$release_version"
@@ -123,3 +141,4 @@ main() {
 }
 
 main "$@"
+
