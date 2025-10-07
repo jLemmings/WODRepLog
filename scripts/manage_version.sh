@@ -33,15 +33,19 @@ read_current_version() {
 
 write_version() {
   local new_version=$1
-  python <<PY
+  python - "$PUBSPEC_FILE" "$new_version" <<'PY'
 from pathlib import Path
 import re
-path = Path(r"$PUBSPEC_FILE")
-text = path.read_text()
+import sys
+
+pubspec_path = Path(sys.argv[1])
+new_version = sys.argv[2]
+
+text = pubspec_path.read_text()
 pattern = re.compile(r"^version:\s*.+$", re.MULTILINE)
 if not pattern.search(text):
     raise SystemExit("version field not found in pubspec")
-path.write_text(pattern.sub(f"version: {new_version}", text))
+pubspec_path.write_text(pattern.sub(f"version: {new_version}", text))
 PY
 }
 
@@ -119,4 +123,3 @@ main() {
 }
 
 main "$@"
-
