@@ -1,4 +1,4 @@
-name: Publish PROD
+﻿name: Publish PROD
 
 on:
   release:
@@ -17,25 +17,34 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v5
 
-      - name: Read version from pubspec
+      - name: Apply release version
+        id: version
+        env:
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          version=$(grep '^version:' pubspec.yaml | awk '{print $2}' | tr -d '\r')
-          if [ -z "$version" ]; then
-            echo 'Unable to locate version in pubspec.yaml' >&2
+          release_input="${RELEASE_NAME:-}"
+          if [ -z "$release_input" ]; then
+            release_input="$RELEASE_TAG"
+          fi
+          if [ -z "$release_input" ]; then
+            echo "Release name or tag must be provided" >&2
             exit 1
           fi
-          echo "VERSION_NAME=$version" >> "$GITHUB_ENV"
-          if [[ "$version" == *"+"* ]]; then
-            build_suffix=${version#*+}
-          else
-            echo 'pubspec version must include a build number suffix (e.g. 1.2.3+4).' >&2
-            exit 1
-          fi
-          if [[ ! "$build_suffix" =~ ^[0-9]+$ ]]; then
-            echo "Build number must be numeric, got: $build_suffix" >&2
-            exit 1
-          fi
-          echo "VERSION_CODE=$build_suffix" >> "$GITHUB_ENV"
+          ./scripts/manage_version.sh release "$release_input"
+
+      - name: Commit version bump
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: prepare release version ${{ steps.version.outputs.new_version }} [skip ci]"
+          branch: ${{ github.event.repository.default_branch }}
+          file_pattern: pubspec.yaml
+
+      - name: Export version info
+        run: |
+          echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${{ steps.version.outputs.base_version }}" >> "$GITHUB_ENV"
 
       # Setup Java in the VM
       - uses: actions/setup-java@v5
@@ -54,16 +63,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
       # Run flutter commands
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: 🕵️ Analyze to check for bad Dart/Flutter practices
+      - name: Analyze project
         run: flutter analyze
 
-      - name: 🕵️ flutter doctor --verbose
+      - name: flutter doctor --verbose
         run: flutter doctor --verbose
 
-      # Bundle
+      # Build bundle
       - name: Build release app bundle
         run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
@@ -86,3 +95,4 @@ jobs:
           releaseName: ${{ env.VERSION_NAME }}
           mappingFile: build/app/outputs/mapping/release/mapping.txt
           track: internal
+
