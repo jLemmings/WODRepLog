@@ -1,4 +1,4 @@
-name: Build Dev
+﻿name: Build Dev
 
 on:
   push:
@@ -7,18 +7,33 @@ on:
 
 jobs:
   build:
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
       FLUTTER_VERSION: 3.35.5
-      VERSION_NAME: ${{ github.event.release.tag_name }}
-      VERSION_CODE: ${{github.run_number}}
 
     steps:
       # Checkout repository codebase
       - name: Checkout the code
         uses: actions/checkout@v5
+
+      - name: Increment build number
+        id: version
+        run: ./scripts/manage_version.sh increment-build
+
+      - name: Commit version bump
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: increment dev build number to ${{ steps.version.outputs.new_version }} [skip ci]"
+          branch: ${{ github.ref_name }}
+          file_pattern: pubspec.yaml
+
+      - name: Export version info
+        run: |
+          echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
 
       # Setup Java in the VM
       - uses: actions/setup-java@v5
@@ -37,18 +52,18 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
       # Run flutter commands
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: 🕵️ Analyze to check for bad Dart/Flutter practices
+      - name: Analyze project
         run: flutter analyze
 
-      - name: 🕵️ flutter doctor --verbose
+      - name: flutter doctor --verbose
         run: flutter doctor --verbose
 
-      # Bundle
+      # Build bundle
       - name: Build release app bundle
-        run: flutter build appbundle
+        run: flutter build appbundle --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
       - name: Upload release app bundle
         if: success()
@@ -58,4 +73,3 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
-  
