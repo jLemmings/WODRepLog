@@ -65,16 +65,6 @@ jobs:
       - name: Build release APK
         run: flutter build apk --split-per-abi --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
-      - name: Sign App Bundle
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: build/app/outputs/flutter-apk/
-          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
-          alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-
       - name: Upload release APK
         if: success()
         uses: actions/upload-artifact@v4
