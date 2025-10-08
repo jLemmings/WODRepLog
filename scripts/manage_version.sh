@@ -67,14 +67,52 @@ emit_outputs() {
   local new_version=$1
   local build_number=$2
   local base_version=$3
+  local build_suffix=$4
   if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     {
       echo "new_version=$new_version"
       echo "build_number=$build_number"
       echo "base_version=$base_version"
+      echo "build_suffix=$build_suffix"
     } >> "$GITHUB_OUTPUT"
   fi
   echo "$new_version"
+}
+
+compute_version_code() {
+  local core_version=$1
+  local build_suffix=$2
+  python - "$core_version" "$build_suffix" <<'PY'
+import sys
+
+core = sys.argv[1]
+suffix = sys.argv[2]
+
+parts = core.split('.')
+if len(parts) != 3:
+    raise SystemExit("Version core must have three segments (major.minor.patch)")
+
+try:
+    major, minor, patch = [int(part) for part in parts]
+    build = int(suffix)
+except ValueError as exc:
+    raise SystemExit(f"Version components must be integers: {exc}") from exc
+
+def ensure_range(name, value, upper):
+    if value < 0 or value > upper:
+        raise SystemExit(f"{name} component must be between 0 and {upper}, got {value}")
+
+ensure_range("major", major, 99)
+ensure_range("minor", minor, 99)
+ensure_range("patch", patch, 99)
+ensure_range("build", build, 9999)
+
+version_code = int(f"{major:02d}{minor:02d}{patch:02d}{build:04d}")
+if version_code > 2100000000:
+    raise SystemExit("Computed version code exceeds Android limit of 2100000000")
+
+print(version_code)
+PY
 }
 
 increment_build() {
@@ -88,8 +126,10 @@ increment_build() {
   build=$(extract_build_number "$current")
   local new_build=$((build + 1))
   local new_version="${core}+${new_build}"
+  local version_code
+  version_code=$(compute_version_code "$core" "$new_build")
   write_version "$new_version"
-  emit_outputs "$new_version" "$new_build" "$core"
+  emit_outputs "$new_version" "$version_code" "$core" "$new_build"
 }
 
 set_release_version() {
@@ -111,8 +151,10 @@ set_release_version() {
     new_build=1
   fi
   local new_version="${release_version}+${new_build}"
+  local version_code
+  version_code=$(compute_version_code "$release_version" "$new_build")
   write_version "$new_version"
-  emit_outputs "$new_version" "$new_build" "$release_version"
+  emit_outputs "$new_version" "$version_code" "$release_version" "$new_build"
 }
 
 main() {
