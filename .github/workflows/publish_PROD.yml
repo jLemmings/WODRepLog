@@ -94,5 +94,5 @@ jobs:
           releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
           releaseName: ${{ env.VERSION_NAME }}
           mappingFile: build/app/outputs/mapping/release/mapping.txt
-          track: Alpha
+          track: alpha
 
