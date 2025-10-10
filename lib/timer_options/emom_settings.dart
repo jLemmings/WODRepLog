@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
 import '../timer_screen.dart';
-import '../theme.dart'; // Import your custom theme file
+import '../theme.dart';
+import 'timer_settings_layout.dart';
 
 class EmomSettings extends StatefulWidget {
   const EmomSettings({super.key});
@@ -11,188 +13,90 @@ class EmomSettings extends StatefulWidget {
 }
 
 class EmomSettingsState extends State<EmomSettings> {
-  // Initial values for time and rounds
   int _minutes = 2;
   int _seconds = 0;
   int _rounds = 12;
 
-  // Calculate total duration
   int get _totalInterval => (_minutes * 60) + _seconds;
-  int get _totalTime => _totalInterval * _rounds; // Total duration in seconds
+  int get _totalTime => _totalInterval * _rounds;
 
-  // Method to format time as mm:ss
   String _formatTime(int minutes, int seconds) {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+    final accentColor = Theme.of(context).colorScheme.emomColor;
+    final intervalLabel = _formatTime(_minutes, _seconds);
+    final totalLabel = _formatTime(_totalTime ~/ 60, _totalTime % 60);
+
+    return TimerSettingsLayout(
+      accentColor: accentColor,
+      title: 'EMOM',
+      subtitle: 'Every minute on the minute with automated prompts.',
+      icon: Icons.schedule,
+      content: [
+        TimerSettingsTile(
+          accentColor: accentColor,
+          label: 'Rounds',
+          value: '$_rounds',
+          helper: 'Total work intervals you want to complete.',
+          icon: Icons.repeat,
+          onTap: () {
+            _showPicker(
+              context: context,
+              items: List<int>.generate(100, (index) => index + 1),
+              initialValue: _rounds,
+              onSelectedItemChanged: (value) {
+                setState(() => _rounds = value);
+              },
+            );
+          },
         ),
-        title: const Text(
-          'WODRepLog',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+        TimerSettingsTile(
+          accentColor: accentColor,
+          label: 'Interval length',
+          value: intervalLabel,
+          helper: 'Minutes and seconds for each round.',
+          icon: Icons.timelapse,
+          onTap: () {
+            _showTimePicker(
+              context: context,
+              initialMinutes: _minutes,
+              initialSeconds: _seconds,
+              onMinutesChanged: (value) {
+                setState(() => _minutes = value);
+              },
+              onSecondsChanged: (value) {
+                setState(() => _seconds = value);
+              },
+            );
+          },
         ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            const Spacer(), // Push content to the center
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'EMOM',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Set your timer',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Rounds Picker
-                    GestureDetector(
-                      onTap: () {
-                        _showPicker(
-                          context: context,
-                          items: List<int>.generate(100, (i) => i + 1),
-                          initialValue: _rounds,
-                          onSelectedItemChanged: (value) {
-                            setState(() {
-                              _rounds = value;
-                            });
-                          },
-                        );
-                      },
-                      child: _buildBox(_rounds.toString(), 'Rounds', width: 80),
-                    ),
-                    const SizedBox(width: 20),
-                    // Interval Picker for Minutes and Seconds
-                    GestureDetector(
-                      onTap: () {
-                        _showTimePicker(
-                          context: context,
-                          initialMinutes: _minutes,
-                          initialSeconds: _seconds,
-                          onMinutesChanged: (value) {
-                            setState(() {
-                              _minutes = value;
-                            });
-                          },
-                          onSecondsChanged: (value) {
-                            setState(() {
-                              _seconds = value;
-                            });
-                          },
-                        );
-                      },
-                      child: _buildBox(
-                          _formatTime(_minutes, _seconds), 'Interval',
-                          width: 120), // Increased width for Interval
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const Spacer(), // Push content above the button
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24.0),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.emomColor,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TimerScreen(
-                        duration: _totalTime, // Total time
-                        interval: _totalInterval, // Interval in seconds
-                      ),
-                    ),
-                  );
-                },
-                child: Column(
-                  children: [
-                    const Text(
-                      'START TIMER',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Text(
-                      'Total time: ${_formatTime(_totalTime ~/ 60, _totalTime % 60)}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        TimerSummaryCard(
+          accentColor: accentColor,
+          items: [
+            TimerSummaryItem(label: 'Rounds', value: '$_rounds'),
+            TimerSummaryItem(label: 'Interval', value: intervalLabel),
+            TimerSummaryItem(label: 'Total Time', value: totalLabel),
           ],
         ),
-      ),
-    );
-  }
-
-  // Helper to build time or rounds box
-  Widget _buildBox(String value, String label, {required double width}) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white, fontSize: 24),
-        ),
-        Container(
-          width: width,
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.emomColor,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
       ],
+      primaryLabel: 'Start Timer',
+      onPrimaryPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TimerScreen(
+              duration: _totalTime,
+              interval: _totalInterval,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // Time picker with minutes and specific seconds (0, 15, 30, 45)
   void _showTimePicker({
     required BuildContext context,
     required int initialMinutes,
@@ -212,7 +116,6 @@ class EmomSettingsState extends State<EmomSettings> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Minutes Picker
                     Expanded(
                       child: CupertinoPicker(
                         scrollController: FixedExtentScrollController(
@@ -226,7 +129,6 @@ class EmomSettingsState extends State<EmomSettings> {
                             List.generate(60, (index) => Text('$index min')),
                       ),
                     ),
-                    // Seconds Picker with specific choices (0, 15, 30, 45)
                     Expanded(
                       child: CupertinoPicker(
                         scrollController: FixedExtentScrollController(
@@ -257,7 +159,6 @@ class EmomSettingsState extends State<EmomSettings> {
     );
   }
 
-  // Generic item picker for rounds
   void _showPicker({
     required BuildContext context,
     required List<int> items,
@@ -267,19 +168,32 @@ class EmomSettingsState extends State<EmomSettings> {
     showModalBottomSheet(
       context: context,
       builder: (_) {
-        return SizedBox(
+        return Container(
           height: 250,
-          child: CupertinoPicker(
-            itemExtent: 32.0,
-            scrollController: FixedExtentScrollController(
-              initialItem: initialValue - 1,
-            ),
-            onSelectedItemChanged: (index) {
-              onSelectedItemChanged(items[index]);
-            },
-            children: items
-                .map((item) => Center(child: Text(item.toString())))
-                .toList(),
+          color: Colors.white,
+          child: Column(
+            children: [
+              Expanded(
+                child: CupertinoPicker(
+                  itemExtent: 32.0,
+                  scrollController: FixedExtentScrollController(
+                    initialItem: initialValue - 1,
+                  ),
+                  onSelectedItemChanged: (index) {
+                    onSelectedItemChanged(items[index]);
+                  },
+                  children: items
+                      .map((item) => Center(child: Text(item.toString())))
+                      .toList(),
+                ),
+              ),
+              CupertinoButton(
+                child: const Text('Done'),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
           ),
         );
       },
