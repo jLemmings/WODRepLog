@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
 import '../timer_screen.dart';
 import '../theme.dart';
+import 'timer_settings_layout.dart';
 
 class TabataSettings extends StatefulWidget {
   const TabataSettings({super.key});
@@ -11,21 +13,130 @@ class TabataSettings extends StatefulWidget {
 }
 
 class TabataSettingsState extends State<TabataSettings> {
-  // Initial values
   int _rounds = 6;
-  int _workMinutes = 3; // Work interval minutes
-  int _workSeconds = 0; // Work interval seconds
-  int _restMinutes = 2; // Rest interval minutes
-  int _restSeconds = 0; // Rest interval seconds
+  int _workMinutes = 3;
+  int _workSeconds = 0;
+  int _restMinutes = 2;
+  int _restSeconds = 0;
 
-  // Method to show the minutes and seconds picker
+  int get _workInterval => (_workMinutes * 60) + _workSeconds;
+  int get _restInterval => (_restMinutes * 60) + _restSeconds;
+  int get _totalTime =>
+      (_rounds * (_workInterval + _restInterval)) - _restInterval;
+
+  String _formatTime(int minutes, int seconds) {
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = Theme.of(context).colorScheme.tabataColor;
+    final workLabel = _formatTime(_workMinutes, _workSeconds);
+    final restLabel = _formatTime(_restMinutes, _restSeconds);
+    final totalLabel = _formatTime(_totalTime ~/ 60, _totalTime % 60);
+
+    return TimerSettingsLayout(
+      accentColor: accentColor,
+      title: 'Tabata',
+      subtitle: 'Alternate intense work and purposeful rest.',
+      icon: Icons.loop,
+      content: [
+        TimerSettingsTile(
+          accentColor: accentColor,
+          label: 'Rounds',
+          value: '$_rounds',
+          helper: 'Number of cycles you want to complete.',
+          icon: Icons.replay_circle_filled,
+          onTap: () {
+            _showPicker(
+              context: context,
+              items: List<int>.generate(30, (index) => index + 1),
+              initialValue: _rounds,
+              onSelectedItemChanged: (value) {
+                setState(() => _rounds = value);
+              },
+            );
+          },
+        ),
+        TimerSettingsTile(
+          accentColor: accentColor,
+          label: 'Work interval',
+          value: workLabel,
+          helper: 'Minutes and seconds for effort.',
+          icon: Icons.fitness_center,
+          onTap: () {
+            _showTimePicker(
+              context: context,
+              initialMinutes: _workMinutes,
+              initialSeconds: _workSeconds,
+              onMinutesChanged: (value) {
+                setState(() => _workMinutes = value);
+              },
+              onSecondsChanged: (value) {
+                setState(() => _workSeconds = value);
+              },
+            );
+          },
+        ),
+        TimerSettingsTile(
+          accentColor: accentColor,
+          label: 'Rest interval',
+          value: restLabel,
+          helper: 'Dial in recovery between rounds.',
+          icon: Icons.bedtime,
+          onTap: () {
+            _showTimePicker(
+              context: context,
+              initialMinutes: _restMinutes,
+              initialSeconds: _restSeconds,
+              onMinutesChanged: (value) {
+                setState(() => _restMinutes = value);
+              },
+              onSecondsChanged: (value) {
+                setState(() => _restSeconds = value);
+              },
+            );
+          },
+        ),
+        TimerSummaryCard(
+          accentColor: accentColor,
+          items: [
+            TimerSummaryItem(label: 'Rounds', value: '$_rounds'),
+            TimerSummaryItem(label: 'Work', value: workLabel),
+            TimerSummaryItem(label: 'Rest', value: restLabel),
+            TimerSummaryItem(label: 'Total Time', value: totalLabel),
+          ],
+        ),
+      ],
+      primaryLabel: 'Start Timer',
+      onPrimaryPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TimerScreen(
+              duration: _workInterval,
+              interval: _restInterval,
+              rounds: _rounds,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTimePicker({
     required BuildContext context,
     required int initialMinutes,
     required int initialSeconds,
     required ValueChanged<int> onMinutesChanged,
     required ValueChanged<int> onSecondsChanged,
+    List<int> secondOptions = const [0, 15, 30, 45],
   }) {
+    final initialSecondIndex = secondOptions.indexOf(initialSeconds);
+    final secondsController = FixedExtentScrollController(
+      initialItem: initialSecondIndex >= 0 ? initialSecondIndex : 0,
+    );
+
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
@@ -38,7 +149,6 @@ class TabataSettingsState extends State<TabataSettings> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Minutes Picker
                     Expanded(
                       child: CupertinoPicker(
                         scrollController: FixedExtentScrollController(
@@ -52,17 +162,14 @@ class TabataSettingsState extends State<TabataSettings> {
                             List.generate(60, (index) => Text('$index min')),
                       ),
                     ),
-                    // Seconds Picker with specific choices
                     Expanded(
                       child: CupertinoPicker(
-                        scrollController: FixedExtentScrollController(
-                          initialItem: [15, 30, 45].indexOf(initialSeconds),
-                        ),
+                        scrollController: secondsController,
                         itemExtent: 32.0,
                         onSelectedItemChanged: (index) {
-                          onSecondsChanged([15, 30, 45][index]);
+                          onSecondsChanged(secondOptions[index]);
                         },
-                        children: [15, 30, 45]
+                        children: secondOptions
                             .map((sec) => Text('$sec sec'))
                             .toList(),
                       ),
@@ -83,215 +190,13 @@ class TabataSettingsState extends State<TabataSettings> {
     );
   }
 
-  // Method to format time from minutes and seconds to mm:ss
-  String _formatTime(int minutes, int seconds) {
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Calculate total time for the Tabata workout
-    final int totalWorkInterval = (_workMinutes * 60) + _workSeconds;
-    final int totalRestInterval = (_restMinutes * 60) + _restSeconds;
-    final int totalTime =
-        (_rounds * (totalWorkInterval + totalRestInterval)) - totalRestInterval;
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'WODRepLog',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            const Spacer(),
-            const Text(
-              'Tabata',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Set your timer',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Rounds Picker
-                GestureDetector(
-                  onTap: () {
-                    _showPicker(
-                      context: context,
-                      items: List<int>.generate(20, (i) => i + 1),
-                      initialValue: _rounds,
-                      onSelectedItemChanged: (value) {
-                        setState(() {
-                          _rounds = value;
-                        });
-                      },
-                    );
-                  },
-                  child: _buildBox(_rounds.toString(), 'Rounds'),
-                ),
-                const SizedBox(width: 20),
-                // Work Interval Picker
-                GestureDetector(
-                  onTap: () {
-                    _showTimePicker(
-                      context: context,
-                      initialMinutes: _workMinutes,
-                      initialSeconds: _workSeconds,
-                      onMinutesChanged: (value) {
-                        setState(() {
-                          _workMinutes = value;
-                        });
-                      },
-                      onSecondsChanged: (value) {
-                        setState(() {
-                          _workSeconds = value;
-                        });
-                      },
-                    );
-                  },
-                  child: _buildBox(
-                      _formatTime(_workMinutes, _workSeconds), 'Work'),
-                ),
-                const SizedBox(width: 20),
-                // Rest Interval Picker
-                GestureDetector(
-                  onTap: () {
-                    _showTimePicker(
-                      context: context,
-                      initialMinutes: _restMinutes,
-                      initialSeconds: _restSeconds,
-                      onMinutesChanged: (value) {
-                        setState(() {
-                          _restMinutes = value;
-                        });
-                      },
-                      onSecondsChanged: (value) {
-                        setState(() {
-                          _restSeconds = value;
-                        });
-                      },
-                    );
-                  },
-                  child: _buildBox(
-                      _formatTime(_restMinutes, _restSeconds), 'Rest'),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24.0),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.tabataColor,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                onPressed: () {
-                  // Start the timer by navigating to the TimerScreen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TimerScreen(
-                        duration: totalWorkInterval, // Work interval
-                        interval: totalRestInterval, // Rest interval
-                        rounds: _rounds, // Rounds
-                      ),
-                    ),
-                  );
-                },
-                child: Column(
-                  children: [
-                    const Text(
-                      'START TIMER',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Text(
-                      'Total time: ${_formatTime(totalTime ~/ 60, totalTime % 60)}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget to build the timer input boxes
-  Widget _buildBox(String value, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          padding: const EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            border:
-                Border.all(color: Theme.of(context).colorScheme.tabataColor),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
-      ],
-    );
-  }
-
-  // Helper method for generic picker (used for rounds)
   void _showPicker({
     required BuildContext context,
     required List<int> items,
     required int initialValue,
     required ValueChanged<int> onSelectedItemChanged,
   }) {
+    final initialIndex = items.indexOf(initialValue);
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
@@ -300,21 +205,18 @@ class TabataSettingsState extends State<TabataSettings> {
           color: Colors.white,
           child: Column(
             children: [
-              SizedBox(
-                height: 200,
+              Expanded(
                 child: CupertinoPicker(
-                  scrollController: FixedExtentScrollController(
-                    initialItem: items.indexOf(initialValue),
-                  ),
                   itemExtent: 32.0,
-                  onSelectedItemChanged: (int index) {
+                  scrollController: FixedExtentScrollController(
+                    initialItem: initialIndex >= 0 ? initialIndex : 0,
+                  ),
+                  onSelectedItemChanged: (index) {
                     onSelectedItemChanged(items[index]);
                   },
-                  children: items.map((int value) {
-                    return Center(
-                      child: Text(value.toString()),
-                    );
-                  }).toList(),
+                  children: items
+                      .map((value) => Center(child: Text(value.toString())))
+                      .toList(),
                 ),
               ),
               CupertinoButton(
