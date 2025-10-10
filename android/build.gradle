@@ -32,16 +32,16 @@ subprojects { project ->
     plugins.withId("com.android.application") {
         project.android {
             // AGP 8+: "compileSdk" also works; keep this for compatibility
-            compileSdkVersion 34
+            compileSdkVersion 35
         }
     }
 
     // Library modules
     plugins.withId("com.android.library") {
         project.android {
-            compileSdkVersion 34
+            compileSdkVersion 35
             if (project.android.hasProperty("compileSdk")) {
-                project.android.compileSdk = 34
+                project.android.compileSdk = 35
             }
 
             // Set namespace from manifest if missing (best-effort)
@@ -80,9 +80,9 @@ subprojects { project ->
     project.afterEvaluate {
         def androidExt = project.extensions.findByName("android")
         if (androidExt != null) {
-            androidExt.compileSdkVersion 34
+            androidExt.compileSdkVersion 35
             if (androidExt.hasProperty("compileSdk")) {
-                androidExt.compileSdk = 34
+                androidExt.compileSdk = 35
             }
         }
     }
