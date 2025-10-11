@@ -112,6 +112,7 @@ class TabataSettingsState extends State<TabataSettings> {
               duration: _workInterval,
               interval: _restInterval,
               rounds: _rounds,
+              totalDuration: _totalTime,
             ),
           ),
         );
