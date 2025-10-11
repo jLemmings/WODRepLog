@@ -10,7 +10,7 @@ jobs:
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
-      FLUTTER_VERSION: 3.35.5
+      FLUTTER_VERSION: 3.35.6
 
     steps:
       # Checkout repository codebase
