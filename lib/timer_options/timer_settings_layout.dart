@@ -10,7 +10,7 @@ class TimerSettingsLayout extends StatelessWidget {
     required this.primaryLabel,
     required this.onPrimaryPressed,
     this.subtitle,
-    this.primarySubtext,
+    this.workoutDuration,
   });
 
   final Color accentColor;
@@ -20,7 +20,7 @@ class TimerSettingsLayout extends StatelessWidget {
   final String primaryLabel;
   final VoidCallback onPrimaryPressed;
   final String? subtitle;
-  final String? primarySubtext;
+  final String? workoutDuration;
 
   @override
   Widget build(BuildContext context) {
@@ -68,42 +68,55 @@ class TimerSettingsLayout extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: onPrimaryPressed,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: accentColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: Text(primaryLabel.toUpperCase()),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: onPrimaryPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accentColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 20,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  if (primarySubtext != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      primarySubtext!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.2,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ],
+                  child: workoutDuration == null
+                      ? Text(primaryLabel.toUpperCase())
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(primaryLabel.toUpperCase()),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 16,
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  workoutDuration!,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                ),
               ),
             ),
           ],

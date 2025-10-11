@@ -55,6 +55,7 @@ class TabataSettingsState extends State<TabataSettings> {
               onSelectedItemChanged: (value) {
                 setState(() => _rounds = value);
               },
+              accentColor: accentColor,
             );
           },
         ),
@@ -67,6 +68,7 @@ class TabataSettingsState extends State<TabataSettings> {
           onTap: () {
             _showTimePicker(
               context: context,
+              accentColor: accentColor,
               initialMinutes: _workMinutes,
               initialSeconds: _workSeconds,
               onMinutesChanged: (value) {
@@ -87,6 +89,7 @@ class TabataSettingsState extends State<TabataSettings> {
           onTap: () {
             _showTimePicker(
               context: context,
+              accentColor: accentColor,
               initialMinutes: _restMinutes,
               initialSeconds: _restSeconds,
               onMinutesChanged: (value) {
@@ -98,16 +101,8 @@ class TabataSettingsState extends State<TabataSettings> {
             );
           },
         ),
-        TimerSummaryCard(
-          accentColor: accentColor,
-          items: [
-            TimerSummaryItem(label: 'Rounds', value: '$_rounds'),
-            TimerSummaryItem(label: 'Work', value: workLabel),
-            TimerSummaryItem(label: 'Rest', value: restLabel),
-            TimerSummaryItem(label: 'Total Time', value: totalLabel),
-          ],
-        ),
       ],
+      workoutDuration: totalLabel,
       primaryLabel: 'Start Timer',
       onPrimaryPressed: () {
         Navigator.push(
@@ -130,6 +125,7 @@ class TabataSettingsState extends State<TabataSettings> {
     required int initialSeconds,
     required ValueChanged<int> onMinutesChanged,
     required ValueChanged<int> onSecondsChanged,
+    required Color accentColor,
     List<int> secondOptions = const [0, 15, 30, 45],
   }) {
     final initialSecondIndex = secondOptions.indexOf(initialSeconds);
@@ -137,53 +133,119 @@ class TabataSettingsState extends State<TabataSettings> {
       initialItem: initialSecondIndex >= 0 ? initialSecondIndex : 0,
     );
 
+    final theme = Theme.of(context);
+    final modalBackground = theme.colorScheme.primary;
+    final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ) ??
+        const TextStyle(
+          fontSize: 20,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        );
+    final overlayColor = accentColor.withOpacity(0.22);
+
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 300,
-          color: Colors.white,
-          child: Column(
-            children: [
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: CupertinoPicker(
-                        scrollController: FixedExtentScrollController(
-                          initialItem: initialMinutes,
-                        ),
-                        itemExtent: 32.0,
-                        onSelectedItemChanged: (index) {
-                          onMinutesChanged(index);
-                        },
-                        children:
-                            List.generate(60, (index) => Text('$index min')),
-                      ),
-                    ),
-                    Expanded(
-                      child: CupertinoPicker(
-                        scrollController: secondsController,
-                        itemExtent: 32.0,
-                        onSelectedItemChanged: (index) {
-                          onSecondsChanged(secondOptions[index]);
-                        },
-                        children: secondOptions
-                            .map((sec) => Text('$sec sec'))
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              CupertinoButton(
-                child: const Text('Done'),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+          height: 320,
+          decoration: BoxDecoration(
+            color: modalBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.45),
+                blurRadius: 30,
+                offset: const Offset(0, -12),
               ),
             ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: CupertinoPicker(
+                          backgroundColor: modalBackground,
+                          scrollController: FixedExtentScrollController(
+                            initialItem: initialMinutes,
+                          ),
+                          selectionOverlay:
+                              CupertinoPickerDefaultSelectionOverlay(
+                            background: overlayColor,
+                          ),
+                          itemExtent: 34.0,
+                          onSelectedItemChanged: (index) {
+                            onMinutesChanged(index);
+                          },
+                          children: List.generate(
+                            60,
+                            (index) => Center(
+                              child: Text(
+                                '$index min',
+                                style: pickerTextStyle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: CupertinoPicker(
+                          backgroundColor: modalBackground,
+                          scrollController: secondsController,
+                          selectionOverlay:
+                              CupertinoPickerDefaultSelectionOverlay(
+                            background: overlayColor,
+                          ),
+                          itemExtent: 34.0,
+                          onSelectedItemChanged: (index) {
+                            onSecondsChanged(secondOptions[index]);
+                          },
+                          children: secondOptions
+                              .map(
+                                (sec) => Center(
+                                  child: Text(
+                                    '$sec sec',
+                                    style: pickerTextStyle,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: modalBackground,
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                  ),
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(14),
+                    child: const Text('Done'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -195,37 +257,91 @@ class TabataSettingsState extends State<TabataSettings> {
     required List<int> items,
     required int initialValue,
     required ValueChanged<int> onSelectedItemChanged,
+    required Color accentColor,
   }) {
     final initialIndex = items.indexOf(initialValue);
+    final theme = Theme.of(context);
+    final modalBackground = theme.colorScheme.primary;
+    final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ) ??
+        const TextStyle(
+          fontSize: 20,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        );
+    final overlayColor = accentColor.withOpacity(0.22);
+
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 250,
-          color: Colors.white,
-          child: Column(
-            children: [
-              Expanded(
-                child: CupertinoPicker(
-                  itemExtent: 32.0,
-                  scrollController: FixedExtentScrollController(
-                    initialItem: initialIndex >= 0 ? initialIndex : 0,
-                  ),
-                  onSelectedItemChanged: (index) {
-                    onSelectedItemChanged(items[index]);
-                  },
-                  children: items
-                      .map((value) => Center(child: Text(value.toString())))
-                      .toList(),
-                ),
-              ),
-              CupertinoButton(
-                child: const Text('Done'),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+          height: 320,
+          decoration: BoxDecoration(
+            color: modalBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.45),
+                blurRadius: 30,
+                offset: const Offset(0, -12),
               ),
             ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: CupertinoPicker(
+                    backgroundColor: modalBackground,
+                    itemExtent: 34.0,
+                    scrollController: FixedExtentScrollController(
+                      initialItem: initialIndex >= 0 ? initialIndex : 0,
+                    ),
+                    selectionOverlay: CupertinoPickerDefaultSelectionOverlay(
+                      background: overlayColor,
+                    ),
+                    onSelectedItemChanged: (index) {
+                      onSelectedItemChanged(items[index]);
+                    },
+                    children: items
+                        .map(
+                          (value) => Center(
+                            child: Text(
+                              value.toString(),
+                              style: pickerTextStyle,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: modalBackground,
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                  ),
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(14),
+                    child: const Text('Done'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
