@@ -89,7 +89,7 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
           color: Colors.white,
           fontWeight: FontWeight.w600,
         );
-    final overlayColor = accentColor.withOpacity(0.22);
+    final overlayColor = accentColor.withValues(alpha: 0.22);
 
     showCupertinoModalPopup(
       context: context,
@@ -101,7 +101,7 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha: 0.45),
                 blurRadius: 30,
                 offset: const Offset(0, -12),
               ),
@@ -178,7 +178,7 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                     color: modalBackground,
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                       ),
                     ),
                   ),
