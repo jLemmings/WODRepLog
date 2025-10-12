@@ -97,7 +97,7 @@ jobs:
         run: flutter build apk --split-per-abi --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
       - name: Commit version bump
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: increment dev build number to ${{ steps.version.outputs.new_version }} [skip ci]"
           branch: ${{ github.ref_name }}
