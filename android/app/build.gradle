@@ -23,11 +23,32 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
-// def keystoreProperties = new Properties()
-// def keystorePropertiesFile = rootProject.file('key.properties')
-// if (keystorePropertiesFile.exists()) {
-//     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-// }
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+def envKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+def envKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+def envKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+def envKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
+if (!keystorePropertiesFile.exists() &&
+        envKeystorePath &&
+        envKeystorePassword &&
+        envKeyAlias &&
+        envKeyPassword) {
+    keystoreProperties["storeFile"] = envKeystorePath
+    keystoreProperties["storePassword"] = envKeystorePassword
+    keystoreProperties["keyAlias"] = envKeyAlias
+    keystoreProperties["keyPassword"] = envKeyPassword
+}
+
+def hasReleaseKeystore = keystoreProperties["storeFile"] &&
+        keystoreProperties["storePassword"] &&
+        keystoreProperties["keyAlias"] &&
+        keystoreProperties["keyPassword"]
 
 android {
     namespace = "ch.joshuahemmings.wodreplog"
@@ -56,21 +77,29 @@ android {
 
     }
 
-    // signingConfigs {
-    //     release {
-    //         keyAlias keystoreProperties['keyAlias']
-    //         keyPassword keystoreProperties['keyPassword']
-    //         storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-    //         storePassword keystoreProperties['storePassword']
-    //     }
-    // }
+    signingConfigs {
+        debug {
+            def debugKeystorePath = System.getenv("ANDROID_DEBUG_KEYSTORE")
+                    ?: "${System.getProperty('user.home')}/.android/debug.keystore"
+            storeFile = file(debugKeystorePath)
+            storePassword = System.getenv("ANDROID_DEBUG_KEYSTORE_PASSWORD") ?: "android"
+            keyAlias = System.getenv("ANDROID_DEBUG_KEY_ALIAS") ?: "androiddebugkey"
+            keyPassword = System.getenv("ANDROID_DEBUG_KEY_PASSWORD") ?: "android"
+        }
+
+        if (hasReleaseKeystore) {
+            release {
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+            }
+        }
+    }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            // signingConfig = signingConfigs.release
-            // signingConfig = signingConfigs.debug
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

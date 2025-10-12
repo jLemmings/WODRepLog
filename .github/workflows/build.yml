@@ -44,6 +44,43 @@ jobs:
 
       - name: flutter doctor --verbose
         run: flutter doctor --verbose
+
+      - name: Prepare signing key
+        env:
+          DEV_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEV_KEYSTORE_FILE_BASE64 }}
+          DEV_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEV_KEYSTORE_PASSWORD }}
+          DEV_KEY_ALIAS: ${{ secrets.ANDROID_DEV_SIGNING_KEY_ALIAS }}
+          DEV_KEY_PASSWORD: ${{ secrets.ANDROID_DEV_SIGNING_KEY_PASSWORD }}
+        run: |
+          WORKSPACE="$(pwd)"
+          if [ -n "$DEV_KEYSTORE_BASE64" ] && \
+             [ -n "$DEV_KEYSTORE_PASSWORD" ] && \
+             [ -n "$DEV_KEY_ALIAS" ] && \
+             [ -n "$DEV_KEY_PASSWORD" ]; then
+            echo "$DEV_KEYSTORE_BASE64" | base64 --decode > android/app/dev.keystore
+            echo "ANDROID_KEYSTORE_PATH=$WORKSPACE/android/app/dev.keystore" >> "$GITHUB_ENV"
+            echo "ANDROID_KEYSTORE_PASSWORD=$DEV_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$DEV_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$DEV_KEY_PASSWORD" >> "$GITHUB_ENV"
+          else
+            KEYSTORE="android/app/debug.keystore"
+            if [ ! -f "$KEYSTORE" ]; then
+              keytool -genkeypair -v \
+                -storetype PKCS12 \
+                -keystore "$KEYSTORE" \
+                -storepass android \
+                -keypass android \
+                -alias androiddebugkey \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            echo "ANDROID_DEBUG_KEYSTORE=$WORKSPACE/$KEYSTORE" >> "$GITHUB_ENV"
+            echo "ANDROID_DEBUG_KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "ANDROID_DEBUG_KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
+            echo "ANDROID_DEBUG_KEY_PASSWORD=android" >> "$GITHUB_ENV"
+          fi
       
       - name: Increment build number
         id: version
