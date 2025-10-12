@@ -80,6 +80,7 @@ jobs:
             echo "ANDROID_DEBUG_KEYSTORE_PASSWORD=android" >> "$GITHUB_ENV"
             echo "ANDROID_DEBUG_KEY_ALIAS=androiddebugkey" >> "$GITHUB_ENV"
             echo "ANDROID_DEBUG_KEY_PASSWORD=android" >> "$GITHUB_ENV"
+            echo "USE_DEBUG_SIGNING_FOR_RELEASE=true" >> "$GITHUB_ENV"
           fi
       
       - name: Increment build number
