@@ -1,37 +1,43 @@
-import 'package:flutter/material.dart';
 import 'dart:math';
 
+import 'package:flutter/material.dart';
+
 class ClockPainter extends CustomPainter {
+  ClockPainter({
+    required this.progress,
+    this.color = Colors.orange,
+    this.trackColor = const Color(0xFF2C2D34),
+    this.strokeWidth = 10,
+  });
+
   final double progress;
   final Color color;
-
-  ClockPainter({required this.progress, this.color = Colors.orange});
+  final Color trackColor;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint outerCircle = Paint()
-      ..color = Colors.grey.shade800
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8;
-
-    final Paint progressArc = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8;
-
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // Draw the outer circle
+    final Paint outerCircle = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    // Draw the outer circle track
     canvas.drawCircle(center, radius, outerCircle);
 
-    // Draw tick marks around the circle
-    final tickPaint = Paint()
-      ..color = Colors.grey
-      ..strokeWidth = 2;
-    const tickLength = 10.0;
+    // Draw tick marks with stronger emphasis every 5th mark
     for (int i = 0; i < 60; i++) {
-      final double angle = (i * 6) * pi / 180; // Convert degrees to radians
+      final bool isMajor = i % 5 == 0;
+      final tickPaint = Paint()
+        ..color = Colors.white.withValues(alpha: isMajor ? 0.28 : 0.12)
+        ..strokeWidth = isMajor ? 2.4 : 1.4
+        ..strokeCap = StrokeCap.round;
+
+      final double angle = (i * 6) * pi / 180;
+      final double tickLength = isMajor ? 16 : 10;
       final double startX = center.dx + radius * cos(angle);
       final double startY = center.dy + radius * sin(angle);
       final double endX = center.dx + (radius - tickLength) * cos(angle);
@@ -39,14 +45,31 @@ class ClockPainter extends CustomPainter {
       canvas.drawLine(Offset(startX, startY), Offset(endX, endY), tickPaint);
     }
 
-    // Draw the progress arc
-    final double angle = 2 * pi * progress;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -pi / 2,
-        angle, false, progressArc);
+    // Draw the progress arc with a subtle gradient
+    final Rect sweepRect = Rect.fromCircle(center: center, radius: radius);
+    final double sweepAngle = 2 * pi * progress;
+
+    final Paint progressArc = Paint()
+      ..shader = SweepGradient(
+        startAngle: -pi / 2,
+        endAngle: -pi / 2 + sweepAngle,
+        colors: [
+          color.withValues(alpha: 0.35),
+          color,
+        ],
+      ).createShader(sweepRect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(sweepRect, -pi / 2, sweepAngle, false, progressArc);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant ClockPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

@@ -83,8 +83,9 @@ class EmomSettingsState extends State<EmomSettings> {
           context,
           MaterialPageRoute(
             builder: (context) => TimerScreen(
-              duration: _totalTime,
-              interval: _totalInterval,
+              duration: _totalInterval,
+              rounds: _rounds,
+              totalDuration: _totalTime,
             ),
           ),
         );
