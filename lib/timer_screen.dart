@@ -32,7 +32,6 @@ class TimerScreenState extends State<TimerScreen> {
   late int _phaseDuration;
   late int _phaseRemaining;
   late int _overallElapsed;
-  late int _totalRounds;
   late int _totalWorkoutSeconds;
 
   Timer? _timer;
@@ -40,7 +39,6 @@ class TimerScreenState extends State<TimerScreen> {
 
   int _countdown = _countdownSeed;
   bool _isCountdownActive = true;
-  bool _isRunning = false;
   bool _isPaused = false;
   TimerPhase _phase = TimerPhase.work;
 
@@ -72,14 +70,12 @@ class TimerScreenState extends State<TimerScreen> {
   }
 
   void _bootstrapState() {
-    _totalRounds = widget.rounds ?? 1;
     _currentRound = 1;
     _phase = TimerPhase.work;
     _phaseDuration = widget.duration;
     _phaseRemaining = widget.duration;
     _overallElapsed = 0;
     _totalWorkoutSeconds = widget.totalDuration ?? _deriveTotalSeconds();
-    _isRunning = false;
     _isPaused = false;
     _isCountdownActive = true;
     _countdown = _countdownSeed;
@@ -129,7 +125,6 @@ class TimerScreenState extends State<TimerScreen> {
     _timer?.cancel();
 
     setState(() {
-      _isRunning = true;
       _isPaused = false;
       _isCountdownActive = false;
       if (!fromResume && _isComplete) {
@@ -155,7 +150,6 @@ class TimerScreenState extends State<TimerScreen> {
         final bool advanced = _advancePhase();
         if (!advanced) {
           _timer?.cancel();
-          _isRunning = false;
           _phase = TimerPhase.complete;
         }
       }
@@ -284,8 +278,6 @@ class TimerScreenState extends State<TimerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
