@@ -15,6 +15,12 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+
+## Dependency management
+- Direct Dart/Flutter dependencies in `pubspec.yaml` are pinned to exact versions.
+- `pubspec.lock` is committed and CI installs with `flutter pub get --enforce-lockfile` to guarantee reproducible resolution.
+- Renovate maintains dependency update PRs and lockfile maintenance on a weekly schedule (`renovate.json`).
+
 ## Dev
 flutter emulators --launch Pixel_8
 flutter run
