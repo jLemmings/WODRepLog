@@ -31,18 +31,14 @@ subprojects { project ->
     // Application modules
     plugins.withId("com.android.application") {
         project.android {
-            // AGP 8+: "compileSdk" also works; keep this for compatibility
-            compileSdkVersion 35
+            compileSdk = 35
         }
     }
 
     // Library modules
     plugins.withId("com.android.library") {
         project.android {
-            compileSdkVersion 35
-            if (project.android.hasProperty("compileSdk")) {
-                project.android.compileSdk = 35
-            }
+            compileSdk = 35
 
             // Set namespace from manifest if missing (best-effort)
             def currentNamespace = project.android.hasProperty("namespace") ? project.android.namespace : null
@@ -73,16 +69,6 @@ subprojects { project ->
                 task.kotlinOptions {
                     jvmTarget = target.toString()
                 }
-            }
-        }
-    }
-
-    project.afterEvaluate {
-        def androidExt = project.extensions.findByName("android")
-        if (androidExt != null) {
-            androidExt.compileSdkVersion 35
-            if (androidExt.hasProperty("compileSdk")) {
-                androidExt.compileSdk = 35
             }
         }
     }
