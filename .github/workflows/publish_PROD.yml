@@ -10,6 +10,7 @@ jobs:
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
+      FLUTTER_VERSION: 3.46.0
 
     steps:
       # Checkout repository codebase
@@ -29,8 +30,8 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Use latest stable Flutter so CI stays compatible with AGP 9 new DSL changes
-          channel: stable
+          # Pin Flutter for reproducible builds
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       # Run flutter commands
