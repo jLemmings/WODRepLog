@@ -12,7 +12,7 @@ jobs:
     env:
       # Setup env variables that will be used throughout the workflow
       JAVA_VERSION: 19.0
-      FLUTTER_VERSION: 3.35.6
+      FLUTTER_VERSION: 3.41.7
 
     steps:
       # Checkout repository codebase
@@ -88,4 +88,3 @@ jobs:
           releaseName: ${{ env.VERSION_NAME }}
           mappingFile: build/app/outputs/mapping/release/mapping.txt
           track: alpha
-
