@@ -78,7 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListView.separated(
                     itemCount: options.length,
                     physics: const BouncingScrollPhysics(),
-                    separatorBuilder: (_, __) => const SizedBox(height: 18),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 18),
                     itemBuilder: (context, index) {
                       final option = options[index];
                       return _PrimaryNavigationCard(option: option);
