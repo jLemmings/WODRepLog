@@ -110,9 +110,9 @@ android {
     buildTypes {
         release {
             if (hasReleaseKeystore) {
-                signingConfig signingConfigs.release
+                signingConfig = signingConfigs.release
             } else if (useDebugSigningForRelease && hasDebugKeystore) {
-                signingConfig signingConfigs.debug
+                signingConfig = signingConfigs.debug
             }
         }
     }
