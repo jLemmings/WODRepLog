@@ -32,22 +32,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  camera: 0.11.0+1
-  path_provider: 2.1.4
-  permission_handler: 12.0.0
-  audioplayers: 6.0.0
+  camera: 0.11.2
+  path_provider: 2.1.5
+  permission_handler: 12.0.1
+  audioplayers: 6.5.1
   gallery_saver_plus: 3.2.9
-  device_info_plus: 12.0.0
+  device_info_plus: 12.1.0
   # The following adds the Cupertino Icons font to your application.
 
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: 1.0.6
+  cupertino_icons: 1.0.8
   path: ^1.9.1
   package_info_plus: 9.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: 0.14.0
+  flutter_launcher_icons: 0.14.4
   # The "flutter_lints" package below contains a set of recommended lints to
 
   # encourage good coding practices. The lint set provided by the package is
