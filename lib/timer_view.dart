@@ -71,7 +71,8 @@ class TimerView extends StatelessWidget {
                   child: ListView.separated(
                     physics: const BouncingScrollPhysics(),
                     itemCount: options.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 18),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 18),
                     itemBuilder: (context, index) {
                       final option = options[index];
                       return _TimerModeCard(option: option);

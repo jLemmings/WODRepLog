@@ -1,6 +1,5 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import 'timer_view.dart';
 import 'video_recorder.dart';
@@ -15,15 +14,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final Future<String> _versionLabel = _loadVersionLabel();
+  static const String _buildName =
+      String.fromEnvironment('FLUTTER_BUILD_NAME', defaultValue: 'unknown');
+  static const String _buildNumber =
+      String.fromEnvironment('FLUTTER_BUILD_NUMBER', defaultValue: '');
 
-  Future<String> _loadVersionLabel() async {
-    final info = await PackageInfo.fromPlatform();
-    final buildNumber = info.buildNumber;
-    return buildNumber.isNotEmpty
-        ? '${info.version}+$buildNumber'
-        : info.version;
-  }
+  String get _versionLabel =>
+      _buildNumber.isNotEmpty ? '$_buildName+$_buildNumber' : _buildName;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListView.separated(
                     itemCount: options.length,
                     physics: const BouncingScrollPhysics(),
-                    separatorBuilder: (_, __) => const SizedBox(height: 18),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 18),
                     itemBuilder: (context, index) {
                       final option = options[index];
                       return _PrimaryNavigationCard(option: option);
@@ -89,9 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                FutureBuilder<String>(
-                  future: _versionLabel,
-                  builder: (context, snapshot) {
+                Builder(
+                  builder: (context) {
                     final theme = Theme.of(context);
                     final color = Colors.white.withValues(alpha: 0.55);
                     final textStyle = theme.textTheme.bodySmall?.copyWith(
@@ -103,17 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontSize: 12,
                         );
 
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return SizedBox(height: (textStyle.fontSize ?? 12) + 4);
-                    }
-
-                    if (snapshot.hasError || !snapshot.hasData) {
-                      return Text('Version unavailable',
-                          style: textStyle, textAlign: TextAlign.center);
-                    }
-
                     return Text(
-                      'Version ${snapshot.data}',
+                      'Version $_versionLabel',
                       style: textStyle,
                       textAlign: TextAlign.center,
                     );

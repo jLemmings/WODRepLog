@@ -13,7 +13,6 @@ buildscript {
 }
 
 import groovy.util.XmlParser
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 allprojects {
     repositories {
@@ -32,16 +31,16 @@ subprojects { project ->
     plugins.withId("com.android.application") {
         project.android {
             // AGP 8+: "compileSdk" also works; keep this for compatibility
-            compileSdkVersion 35
+            compileSdkVersion 36
         }
     }
 
     // Library modules
     plugins.withId("com.android.library") {
         project.android {
-            compileSdkVersion 35
+            compileSdkVersion 36
             if (project.android.hasProperty("compileSdk")) {
-                project.android.compileSdk = 35
+                project.android.compileSdk = 36
             }
 
             // Set namespace from manifest if missing (best-effort)
@@ -61,18 +60,11 @@ subprojects { project ->
                 }
             }
 
-            // Ensure Java/Kotlin compilation targets stay aligned across all
+            // Ensure Java compilation targets stay aligned across all
             // library modules (including third-party plugins).
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_17
                 targetCompatibility = JavaVersion.VERSION_17
-            }
-
-            project.tasks.withType(KotlinCompile).configureEach { task ->
-                def target = project.android?.compileOptions?.targetCompatibility ?: JavaVersion.VERSION_17
-                task.kotlinOptions {
-                    jvmTarget = target.toString()
-                }
             }
         }
     }
@@ -80,9 +72,9 @@ subprojects { project ->
     project.afterEvaluate {
         def androidExt = project.extensions.findByName("android")
         if (androidExt != null) {
-            androidExt.compileSdkVersion 35
+            androidExt.compileSdkVersion 36
             if (androidExt.hasProperty("compileSdk")) {
-                androidExt.compileSdk = 35
+                androidExt.compileSdk = 36
             }
         }
     }

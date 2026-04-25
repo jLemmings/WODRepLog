@@ -1,29 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 3am on monday"]
+  },
   "packageRules": [
     {
-      "matchManagers": [
-        "pub",
-        "gradle",
-        "gradle-wrapper"
-      ],
-      "groupName": "Flutter and Android dependencies",
-      "labels": [
-        "dependencies",
-        "flutter",
-        "android"
-      ],
+      "matchManagers": ["pub"],
+      "groupName": "Flutter pub dependencies",
+      "labels": ["dependencies", "flutter"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "groupName": "Android build dependencies",
+      "labels": ["dependencies", "android"],
       "rangeStrategy": "replace"
     },
     {
       "description": "Ignore Flutter's internal Gradle plugin that is resolved from the local SDK.",
-      "matchDatasources": [
-        "gradle-plugin",
-        "maven"
-      ],
+      "matchDatasources": ["gradle-plugin", "maven"],
       "matchPackageNames": [
         "dev.flutter.flutter-plugin-loader",
         "dev.flutter.flutter-plugin-loader:dev.flutter.flutter-plugin-loader.gradle.plugin",
