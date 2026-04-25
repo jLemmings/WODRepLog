@@ -71,6 +71,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $androidDir = Join-Path $repoRoot "android"
 $localPropertiesPath = Join-Path $androidDir "local.properties"
 $keyPropertiesPath = Join-Path $androidDir "key.properties"
+$androidRegistrantPath = Join-Path $androidDir "app\\src\\main\\java\\io\\flutter\\plugins\\GeneratedPluginRegistrant.java"
 $flutterCommand = Get-Command flutter -ErrorAction SilentlyContinue
 $flutterSdkFromCommand = $null
 
@@ -168,4 +169,8 @@ if ($BuildName) {
 
 Write-Host "Using Flutter SDK: $resolvedFlutterSdk"
 Write-Host "Using Android SDK: $resolvedAndroidSdk"
+if (Test-Path $androidRegistrantPath) {
+    Remove-Item -LiteralPath $androidRegistrantPath
+}
+& flutter pub get
 & flutter @buildArgs

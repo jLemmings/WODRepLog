@@ -36,9 +36,9 @@ flutter run
 ### Local Android APK build
 For a local Windows release APK build, install:
 
-- Flutter `3.35.6`
+- Flutter `3.41.7` or newer (`pubspec.lock` currently resolves with Flutter `>=3.38.4`)
 - A JDK with `keytool` on `PATH`
-- Android SDK with platform `android-35` and build-tools installed
+- Android SDK with platform `android-36` and build-tools installed
 
 Then run:
 
