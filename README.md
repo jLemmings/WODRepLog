@@ -26,11 +26,32 @@ flutter emulators --launch Pixel_8
 flutter run
 
 ## Build
-- flutter build appbundle
+- `pwsh ./scripts/build_android_apk.ps1 -BuildNumber 240036 -BuildName 0.0.24+36`
+- `flutter build appbundle`
 - bundletool build-apks --bundle=build/app/outputs/bundle/release/app-release.aab --output=build/app/outputs/apk/release/wodreplog.apks
 - adb pair ip:port
 - adb devices
 - bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
+
+### Local Android APK build
+For a local Windows release APK build, install:
+
+- Flutter `3.35.6`
+- A JDK with `keytool` on `PATH`
+- Android SDK with platform `android-35` and build-tools installed
+
+Then run:
+
+```powershell
+pwsh ./scripts/build_android_apk.ps1 -BuildNumber 240036 -BuildName 0.0.24+36
+```
+
+The script:
+
+- detects the Android SDK from `-AndroidSdkPath`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or standard Windows SDK locations
+- updates `android/local.properties` with `flutter.sdk` and `sdk.dir`
+- creates `~/.android/debug.keystore` if no release keystore is configured
+- enables debug signing fallback for local release APK builds
 
 ### Continuous delivery
 Pushing to the `master` branch triggers the **Build and Publish** GitHub Actions workflow, which automatically increments the build number in `pubspec.yaml`, commits the change, builds a signed release app bundle, and publishes it to the Google Play internal testing track using the configured service account credentials.
