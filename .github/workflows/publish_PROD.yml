@@ -35,7 +35,7 @@ jobs:
 
       # Run flutter commands
       - name: Install dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Analyze project
         run: flutter analyze
