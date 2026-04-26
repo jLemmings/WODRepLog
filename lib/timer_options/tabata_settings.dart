@@ -110,6 +110,8 @@ class TabataSettingsState extends State<TabataSettings> {
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _workInterval,
+              workoutName: 'Tabata',
+              accentColor: accentColor,
               interval: _restInterval,
               rounds: _rounds,
               totalDuration: _totalTime,

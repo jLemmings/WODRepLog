@@ -84,6 +84,8 @@ class EmomSettingsState extends State<EmomSettings> {
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalInterval,
+              workoutName: 'EMOM',
+              accentColor: accentColor,
               rounds: _rounds,
               totalDuration: _totalTime,
             ),

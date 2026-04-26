@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'clock_painter.dart';
 
@@ -11,12 +12,16 @@ class TimerScreen extends StatefulWidget {
   const TimerScreen({
     super.key,
     required this.duration,
+    required this.workoutName,
+    required this.accentColor,
     this.interval,
     this.rounds,
     this.totalDuration,
   });
 
   final int duration;
+  final String workoutName;
+  final Color accentColor;
   final int? interval;
   final int? rounds;
   final int? totalDuration;
@@ -27,6 +32,11 @@ class TimerScreen extends StatefulWidget {
 
 class TimerScreenState extends State<TimerScreen> {
   static const int _countdownSeed = 3;
+  static const Duration _countdownBeepDuration = Duration(milliseconds: 180);
+  static const Duration _startBeepDuration = Duration(seconds: 2);
+  static const MethodChannel _beepChannel = MethodChannel(
+    'ch.joshuahemmings.wodreplog/beep',
+  );
 
   late int _currentRound;
   late int _phaseDuration;
@@ -41,9 +51,6 @@ class TimerScreenState extends State<TimerScreen> {
   bool _isCountdownActive = true;
   bool _isPaused = false;
   TimerPhase _phase = TimerPhase.work;
-
-  late final AudioPlayer _countdownPlayer;
-  late final AudioPlayer _startPlayer;
 
   bool get _hasRounds => (widget.rounds ?? 0) > 0;
   bool get _hasRest => (widget.interval ?? 0) > 0;
@@ -62,10 +69,7 @@ class TimerScreenState extends State<TimerScreen> {
   @override
   void initState() {
     super.initState();
-    _countdownPlayer = AudioPlayer();
-    _startPlayer = AudioPlayer();
     _bootstrapState();
-    _preloadSounds();
     _startCountdown();
   }
 
@@ -79,11 +83,6 @@ class TimerScreenState extends State<TimerScreen> {
     _isPaused = false;
     _isCountdownActive = true;
     _countdown = _countdownSeed;
-  }
-
-  void _preloadSounds() {
-    _countdownPlayer.setSource(AssetSource('beep.wav'));
-    _startPlayer.setSource(AssetSource('start_beep.wav'));
   }
 
   int _deriveTotalSeconds() {
@@ -104,6 +103,7 @@ class TimerScreenState extends State<TimerScreen> {
       _isCountdownActive = true;
       _countdown = _countdownSeed;
     });
+    unawaited(_playCountdownBeep());
 
     _countdownTimer =
         Timer.periodic(const Duration(seconds: 1), (Timer countdownTimer) {
@@ -111,11 +111,13 @@ class TimerScreenState extends State<TimerScreen> {
         setState(() {
           _countdown--;
         });
-        _countdownPlayer.play(AssetSource('beep.wav'));
-      } else {
-        countdownTimer.cancel();
-        _playStartBeep();
-        _startMainTimer();
+        if (_countdown == 0) {
+          countdownTimer.cancel();
+          unawaited(_playStartBeep());
+          _startMainTimer();
+        } else {
+          unawaited(_playCountdownBeep());
+        }
       }
     });
   }
@@ -207,8 +209,7 @@ class TimerScreenState extends State<TimerScreen> {
   void _resetTimer() {
     _timer?.cancel();
     _countdownTimer?.cancel();
-    _countdownPlayer.stop();
-    _startPlayer.stop();
+    unawaited(_stopNativeBeep());
 
     setState(() {
       _bootstrapState();
@@ -217,10 +218,34 @@ class TimerScreenState extends State<TimerScreen> {
     _startCountdown();
   }
 
-  void _playStartBeep() async {
-    await _startPlayer.play(AssetSource('start_beep.wav'));
-    await Future.delayed(const Duration(seconds: 2));
-    _startPlayer.stop();
+  Future<void> _playCountdownBeep() async {
+    await _playNativeBeep(_countdownBeepDuration);
+  }
+
+  Future<void> _playStartBeep() async {
+    await _playNativeBeep(_startBeepDuration);
+  }
+
+  Future<void> _playNativeBeep(Duration duration) async {
+    try {
+      await _beepChannel.invokeMethod<void>('playBeep', {
+        'durationMs': duration.inMilliseconds,
+      });
+    } on MissingPluginException {
+      // Audio cues are non-critical; the timer should still run without them.
+    } on PlatformException {
+      // Audio cues are non-critical; the timer should still run without them.
+    }
+  }
+
+  Future<void> _stopNativeBeep() async {
+    try {
+      await _beepChannel.invokeMethod<void>('stopBeep');
+    } on MissingPluginException {
+      // Audio cues are non-critical; the timer should still run without them.
+    } on PlatformException {
+      // Audio cues are non-critical; the timer should still run without them.
+    }
   }
 
   String _formatTime(int seconds) {
@@ -261,18 +286,14 @@ class TimerScreenState extends State<TimerScreen> {
   }
 
   Color _phaseColor(ColorScheme scheme) {
-    if (_isComplete) {
-      return scheme.primary;
-    }
-    return _phase == TimerPhase.rest ? scheme.tertiary : scheme.secondary;
+    return _phase == TimerPhase.rest ? scheme.tertiary : widget.accentColor;
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _countdownTimer?.cancel();
-    _countdownPlayer.dispose();
-    _startPlayer.dispose();
+    unawaited(_stopNativeBeep());
     super.dispose();
   }
 
@@ -297,19 +318,17 @@ class TimerScreenState extends State<TimerScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
             child: Column(
               children: [
                 _buildStatusCard(context),
-                const SizedBox(height: 28),
+                const SizedBox(height: 16),
                 Expanded(
-                  child: Center(
-                    child: _isCountdownActive
-                        ? _buildCountdown(context)
-                        : _buildTimerVisualization(context),
-                  ),
+                  child: _isCountdownActive
+                      ? _buildCountdown(context)
+                      : _buildTimerVisualization(context),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 _buildControls(context),
               ],
             ),
@@ -325,39 +344,44 @@ class TimerScreenState extends State<TimerScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          Row(
             children: [
-              if (_hasRounds)
-                _StatusChip(
-                  icon: Icons.repeat,
-                  label: 'Round',
-                  value:
-                      '$_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
+              Expanded(
+                child: _StatusChip(
+                  icon: _phase == TimerPhase.rest
+                      ? Icons.self_improvement
+                      : Icons.fitness_center,
+                  label: 'Workout',
+                  value: widget.workoutName,
+                  background: _phaseColor(scheme).withValues(alpha: 0.18),
+                  foreground: Colors.white,
                 ),
-              _StatusChip(
-                icon: _phase == TimerPhase.rest
-                    ? Icons.self_improvement
-                    : Icons.fitness_center,
-                label: 'Phase',
-                value: _phaseLabel,
-                background: _phaseColor(scheme).withValues(alpha: 0.18),
-                foreground: Colors.white,
               ),
+              if (_hasRounds) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatusChip(
+                    icon: Icons.repeat,
+                    label: 'Round',
+                    value:
+                        '$_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: _MetricTile(
@@ -365,7 +389,7 @@ class TimerScreenState extends State<TimerScreen> {
                   value: _formatTime(_overallElapsed),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: _MetricTile(
                   label: 'Remaining',
@@ -374,26 +398,37 @@ class TimerScreenState extends State<TimerScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: _totalProgress,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: AlwaysStoppedAnimation<Color>(_phaseColor(scheme)),
-            ),
-          ),
-          if (_nextUpLabel != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              _nextUpLabel!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontWeight: FontWeight.w500,
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: _totalProgress,
+                    minHeight: 7,
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(_phaseColor(scheme)),
+                  ),
+                ),
               ),
-            ),
-          ],
+              if (_nextUpLabel != null) ...[
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    _nextUpLabel!,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -402,32 +437,34 @@ class TimerScreenState extends State<TimerScreen> {
   Widget _buildCountdown(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Get ready',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: Colors.white.withValues(alpha: 0.75),
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 12),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, animation) =>
-              ScaleTransition(scale: animation, child: child),
-          child: Text(
-            _countdown.toString(),
-            key: ValueKey<int>(_countdown),
-            style: theme.textTheme.displayLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Get ready',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
+            child: Text(
+              _countdown.toString(),
+              key: ValueKey<int>(_countdown),
+              style: theme.textTheme.displayLarge?.copyWith(
+                color: Colors.white,
+                fontSize: 104,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -461,57 +498,72 @@ class TimerScreenState extends State<TimerScreen> {
       );
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 240,
-          height: 240,
-          child: CustomPaint(
-            painter: ClockPainter(progress: _phaseProgress, color: color),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _phaseLabel,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      letterSpacing: 0.6,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight =
+            math.max(220.0, constraints.maxHeight - (_hasRounds ? 44 : 0));
+        final size = math
+            .min(constraints.maxWidth, availableHeight)
+            .clamp(220.0, 360.0)
+            .toDouble();
+
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: size,
+                height: size,
+                child: CustomPaint(
+                  painter: ClockPainter(
+                    progress: _phaseProgress,
+                    color: color,
+                    strokeWidth: 12,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _phaseLabel,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.68),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 320),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(opacity: animation, child: child),
+                          child: Text(
+                            _formatTime(_phaseRemaining),
+                            key: ValueKey<int>(_phaseRemaining),
+                            style: theme.textTheme.displayMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 320),
-                    transitionBuilder: (child, animation) =>
-                        FadeTransition(opacity: animation, child: child),
-                    child: Text(
-                      _formatTime(_phaseRemaining),
-                      key: ValueKey<int>(_phaseRemaining),
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              if (_hasRounds) ...[
+                const SizedBox(height: 18),
+                Text(
+                  'Round $_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
           ),
-        ),
-        if (_hasRounds) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Round $_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 
@@ -524,57 +576,65 @@ class TimerScreenState extends State<TimerScreen> {
     }
 
     final elevatedStyle = ElevatedButton.styleFrom(
+      fixedSize: const Size.fromHeight(56),
       backgroundColor: _phaseColor(scheme),
       foregroundColor: Colors.black,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
 
     final outlinedStyle = OutlinedButton.styleFrom(
+      fixedSize: const Size.fromHeight(56),
       foregroundColor: Colors.white,
-      side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      side: BorderSide(color: Colors.white.withValues(alpha: 0.32)),
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
 
     if (_isComplete) {
       return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ElevatedButton.icon(
-            style: elevatedStyle,
-            onPressed: _resetTimer,
-            icon: const Icon(Icons.replay),
-            label: const Text('Restart'),
+          Expanded(
+            child: ElevatedButton.icon(
+              style: elevatedStyle,
+              onPressed: _resetTimer,
+              icon: const Icon(Icons.replay),
+              label: const Text('Restart'),
+            ),
           ),
-          const SizedBox(width: 16),
-          OutlinedButton.icon(
-            style: outlinedStyle,
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.check),
-            label: const Text('Done'),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              style: outlinedStyle,
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.check),
+              label: const Text('Done'),
+            ),
           ),
         ],
       );
     }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        ElevatedButton.icon(
-          style: elevatedStyle,
-          onPressed: _isPaused ? _resumeTimer : _pauseTimer,
-          icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-          label: Text(_isPaused ? 'Resume' : 'Pause'),
+        Expanded(
+          child: ElevatedButton.icon(
+            style: elevatedStyle,
+            onPressed: _isPaused ? _resumeTimer : _pauseTimer,
+            icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
+            label: Text(_isPaused ? 'Resume' : 'Pause'),
+          ),
         ),
-        const SizedBox(width: 16),
-        OutlinedButton.icon(
-          style: outlinedStyle,
-          onPressed: _resetTimer,
-          icon: const Icon(Icons.restart_alt),
-          label: const Text('Reset'),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            style: outlinedStyle,
+            onPressed: _resetTimer,
+            icon: const Icon(Icons.restart_alt),
+            label: const Text('Reset'),
+          ),
         ),
       ],
     );
@@ -614,25 +674,31 @@ class _StatusChip extends StatelessWidget {
         children: [
           Icon(icon, color: fg.withValues(alpha: 0.85), size: 18),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: fg.withValues(alpha: 0.75),
-                  letterSpacing: 0.8,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: fg.withValues(alpha: 0.75),
+                    letterSpacing: 0.8,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

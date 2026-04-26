@@ -47,8 +47,13 @@ class VideoRecorder extends StatefulWidget {
 }
 
 class VideoRecorderState extends State<VideoRecorder> {
+  static const MethodChannel _videoOverlayChannel = MethodChannel(
+    'ch.joshuahemmings.wodreplog/video_overlay',
+  );
+
   late CameraController _controller;
   bool _isRecording = false;
+  bool _isProcessingVideo = false;
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
 
@@ -115,22 +120,64 @@ class VideoRecorderState extends State<VideoRecorder> {
       final XFile videoFile = await _controller.stopVideoRecording();
       setState(() {
         _isRecording = false;
+        _isProcessingVideo = true;
       });
       _stopTimerTicker(resetElapsed: false);
 
       final newFilePath = '${path.withoutExtension(videoFile.path)}.mp4';
       await File(videoFile.path).rename(newFilePath);
+      final processedPath = await _embedOverlayInVideo(newFilePath);
 
-      final bool? success = await GallerySaver.saveVideo(newFilePath);
+      final bool? success = await GallerySaver.saveVideo(processedPath);
       if (success == true) {
-        _showSnackBar('Video saved to gallery');
+        _showSnackBar('Video with embedded overlay saved to gallery');
       } else {
         _showErrorSnackBar('Failed to save video to gallery');
       }
     } catch (e) {
       _showErrorSnackBar('Error stopping video recording: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingVideo = false;
+        });
+      }
     }
   }
+
+  Future<String> _embedOverlayInVideo(String inputPath) async {
+    if (!_hasOverlayContent) {
+      return inputPath;
+    }
+
+    final outputPath = '${path.withoutExtension(inputPath)}_proof.mp4';
+    try {
+      final result = await _videoOverlayChannel.invokeMethod<String>(
+        'embedOverlay',
+        {
+          'inputPath': inputPath,
+          'outputPath': outputPath,
+          'athleteName': _athleteName,
+          'eventName': _eventName,
+          'workoutTitle': _workoutTitle,
+          'timerType': _timerConfig?.type.name,
+          'timerIntervalSeconds': _timerConfig?.intervalSeconds,
+          'timerRounds': _timerConfig?.rounds,
+          'timerTotalSeconds': _timerConfig?.totalSeconds,
+        },
+      );
+
+      return result ?? outputPath;
+    } on MissingPluginException {
+      return inputPath;
+    }
+  }
+
+  bool get _hasOverlayContent =>
+      _athleteName.isNotEmpty ||
+      _eventName.isNotEmpty ||
+      _workoutTitle.isNotEmpty ||
+      _timerConfig != null;
   void _startTimerTicker() {
     _ticker?.cancel();
     _elapsed = Duration.zero;
@@ -486,7 +533,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       alignment: Alignment.topCenter,
       child: SafeArea(
         child: AnimatedOpacity(
-          opacity: _isRecording ? 1 : 0,
+          opacity: _isRecording || _isProcessingVideo ? 1 : 0,
           duration: const Duration(milliseconds: 250),
           child: Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -504,12 +551,16 @@ class VideoRecorderState extends State<VideoRecorder> {
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.fiber_manual_record, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                children: [
+                  const Icon(
+                    Icons.fiber_manual_record,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'REC',
-                    style: TextStyle(
+                    _isProcessingVideo ? 'SAVING' : 'REC',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
@@ -565,7 +616,11 @@ class VideoRecorderState extends State<VideoRecorder> {
               const SizedBox(width: 18),
               _RecordButton(
                 isRecording: _isRecording,
-                onPressed: _isRecording ? _stopRecording : _startRecording,
+                onPressed: _isProcessingVideo
+                    ? null
+                    : _isRecording
+                        ? _stopRecording
+                        : _startRecording,
               ),
               const SizedBox(width: 18),
               Expanded(
@@ -707,7 +762,7 @@ class _RecordButton extends StatelessWidget {
   });
 
   final bool isRecording;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
