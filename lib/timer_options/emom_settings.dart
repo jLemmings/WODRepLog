@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
 import 'timer_settings_layout.dart';
@@ -27,20 +28,21 @@ class EmomSettingsState extends State<EmomSettings> {
   @override
   Widget build(BuildContext context) {
     final accentColor = Theme.of(context).colorScheme.emomColor;
+    final l10n = AppLocalizations.of(context);
     final intervalLabel = _formatTime(_minutes, _seconds);
     final totalLabel = _formatTime(_totalTime ~/ 60, _totalTime % 60);
 
     return TimerSettingsLayout(
       accentColor: accentColor,
-      title: 'EMOM',
-      subtitle: 'Every minute on the minute with automated prompts.',
+      title: l10n.emomTitle,
+      subtitle: l10n.emomDescription,
       icon: Icons.schedule,
       content: [
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Rounds',
+          label: l10n.rounds,
           value: '$_rounds',
-          helper: 'Total work intervals you want to complete.',
+          helper: l10n.roundsHelper,
           icon: Icons.repeat,
           onTap: () {
             _showPicker(
@@ -56,9 +58,9 @@ class EmomSettingsState extends State<EmomSettings> {
         ),
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Interval length',
+          label: l10n.intervalLength,
           value: intervalLabel,
-          helper: 'Minutes and seconds for each round.',
+          helper: l10n.intervalLengthHelper,
           icon: Icons.timelapse,
           onTap: () {
             _showTimePicker(
@@ -77,14 +79,14 @@ class EmomSettingsState extends State<EmomSettings> {
         ),
       ],
       workoutDuration: totalLabel,
-      primaryLabel: 'Start Timer',
+      primaryLabel: l10n.startTimer,
       onPrimaryPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalInterval,
-              workoutName: 'EMOM',
+              workoutName: l10n.emomTitle,
               accentColor: accentColor,
               rounds: _rounds,
               totalDuration: _totalTime,
@@ -104,7 +106,8 @@ class EmomSettingsState extends State<EmomSettings> {
     required ValueChanged<int> onSecondsChanged,
   }) {
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -142,7 +145,6 @@ class EmomSettingsState extends State<EmomSettings> {
                     children: [
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem: initialMinutes,
                           ),
@@ -158,7 +160,7 @@ class EmomSettingsState extends State<EmomSettings> {
                             60,
                             (index) => Center(
                               child: Text(
-                                '$index min',
+                                l10n.minutesUnit(index),
                                 style: pickerTextStyle,
                               ),
                             ),
@@ -167,7 +169,6 @@ class EmomSettingsState extends State<EmomSettings> {
                       ),
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem:
                                 [0, 15, 30, 45].indexOf(initialSeconds),
@@ -184,7 +185,7 @@ class EmomSettingsState extends State<EmomSettings> {
                               .map(
                                 (sec) => Center(
                                   child: Text(
-                                    '$sec sec',
+                                    l10n.secondsUnit(sec),
                                     style: pickerTextStyle,
                                   ),
                                 ),
@@ -211,7 +212,13 @@ class EmomSettingsState extends State<EmomSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -233,7 +240,8 @@ class EmomSettingsState extends State<EmomSettings> {
     required Color accentColor,
   }) {
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -269,7 +277,6 @@ class EmomSettingsState extends State<EmomSettings> {
               children: [
                 Expanded(
                   child: CupertinoPicker(
-                    backgroundColor: modalBackground,
                     scrollController: FixedExtentScrollController(
                       initialItem: initialIndex >= 0 ? initialIndex : 0,
                     ),
@@ -308,7 +315,13 @@ class EmomSettingsState extends State<EmomSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },

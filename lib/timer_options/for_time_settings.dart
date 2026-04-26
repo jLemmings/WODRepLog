@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
 import 'timer_settings_layout.dart';
@@ -25,19 +26,20 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
   @override
   Widget build(BuildContext context) {
     final accentColor = Theme.of(context).colorScheme.forTimeColor;
+    final l10n = AppLocalizations.of(context);
     final formatted = _formatTime(_durationMinutes, _durationSeconds);
 
     return TimerSettingsLayout(
       accentColor: accentColor,
-      title: 'For Time',
-      subtitle: 'Race the clock and capture your best effort.',
+      title: l10n.forTimeTitle,
+      subtitle: l10n.forTimeDescription,
       icon: Icons.flag_outlined,
       content: [
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Time cap',
+          label: l10n.timeCap,
           value: formatted,
-          helper: 'Tap to pick minutes and seconds for your cap.',
+          helper: l10n.timeCapHelper,
           icon: Icons.hourglass_top,
           onTap: () {
             _showTimePicker(
@@ -56,14 +58,14 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
         ),
       ],
       workoutDuration: formatted,
-      primaryLabel: 'Start Timer',
+      primaryLabel: l10n.startTimer,
       onPrimaryPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalSeconds,
-              workoutName: 'For Time',
+              workoutName: l10n.forTimeTitle,
               accentColor: accentColor,
             ),
           ),
@@ -81,7 +83,8 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
     required ValueChanged<int> onSecondsChanged,
   }) {
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -119,7 +122,6 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                     children: [
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem: initialMinutes,
                           ),
@@ -135,7 +137,7 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                             60,
                             (index) => Center(
                               child: Text(
-                                '$index min',
+                                l10n.minutesUnit(index),
                                 style: pickerTextStyle,
                               ),
                             ),
@@ -144,7 +146,6 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                       ),
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem:
                                 [0, 15, 30, 45].indexOf(initialSeconds),
@@ -161,7 +162,7 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                               .map(
                                 (sec) => Center(
                                   child: Text(
-                                    '$sec sec',
+                                    l10n.secondsUnit(sec),
                                     style: pickerTextStyle,
                                   ),
                                 ),
@@ -188,7 +189,13 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },

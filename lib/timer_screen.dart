@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'clock_painter.dart';
+import 'l10n/app_localizations.dart';
 
 enum TimerPhase { work, rest, complete }
 
@@ -254,32 +255,34 @@ class TimerScreenState extends State<TimerScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
-  String get _phaseLabel {
+  String _phaseLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (_isComplete) {
-      return 'Complete';
+      return l10n.complete;
     }
     if (!_hasRounds) {
-      return 'Timer';
+      return l10n.timerPhase;
     }
-    return _phase == TimerPhase.rest ? 'Rest' : 'Work';
+    return _phase == TimerPhase.rest ? l10n.rest : l10n.work;
   }
 
-  String? get _nextUpLabel {
+  String? _nextUpLabel(BuildContext context) {
     if (!_hasRounds || _isComplete) {
       return null;
     }
 
+    final l10n = AppLocalizations.of(context);
     final totalRounds = widget.rounds ?? 0;
 
     if (_phase == TimerPhase.work) {
       if (_hasRest && _currentRound < totalRounds) {
-        return 'Next: Rest ${_formatTime(widget.interval!)}';
+        return l10n.nextRest(_formatTime(widget.interval!));
       }
       if (_currentRound < totalRounds) {
-        return 'Next: Round ${_currentRound + 1}';
+        return l10n.nextRound(_currentRound + 1);
       }
     } else if (_phase == TimerPhase.rest && _currentRound < totalRounds) {
-      return 'Next: Round ${_currentRound + 1}';
+      return l10n.nextRound(_currentRound + 1);
     }
 
     return null;
@@ -299,13 +302,14 @@ class TimerScreenState extends State<TimerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Timer'),
+        title: Text(l10n.timerTitle),
       ),
       body: Container(
         width: double.infinity,
@@ -341,6 +345,8 @@ class TimerScreenState extends State<TimerScreen> {
   Widget _buildStatusCard(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final nextUpLabel = _nextUpLabel(context);
 
     return Container(
       width: double.infinity,
@@ -360,7 +366,7 @@ class TimerScreenState extends State<TimerScreen> {
                   icon: _phase == TimerPhase.rest
                       ? Icons.self_improvement
                       : Icons.fitness_center,
-                  label: 'Workout',
+                  label: l10n.workout,
                   value: widget.workoutName,
                   background: _phaseColor(scheme).withValues(alpha: 0.18),
                   foreground: Colors.white,
@@ -371,7 +377,7 @@ class TimerScreenState extends State<TimerScreen> {
                 Expanded(
                   child: _StatusChip(
                     icon: Icons.repeat,
-                    label: 'Round',
+                    label: l10n.round,
                     value:
                         '$_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
                   ),
@@ -385,14 +391,14 @@ class TimerScreenState extends State<TimerScreen> {
             children: [
               Expanded(
                 child: _MetricTile(
-                  label: 'Elapsed',
+                  label: l10n.elapsed,
                   value: _formatTime(_overallElapsed),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _MetricTile(
-                  label: 'Remaining',
+                  label: l10n.remaining,
                   value: _formatTime(_totalRemaining),
                 ),
               ),
@@ -413,11 +419,11 @@ class TimerScreenState extends State<TimerScreen> {
                   ),
                 ),
               ),
-              if (_nextUpLabel != null) ...[
+              if (nextUpLabel != null) ...[
                 const SizedBox(width: 12),
                 Flexible(
                   child: Text(
-                    _nextUpLabel!,
+                    nextUpLabel,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -436,13 +442,14 @@ class TimerScreenState extends State<TimerScreen> {
 
   Widget _buildCountdown(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Get ready',
+            l10n.getReady,
             style: theme.textTheme.titleLarge?.copyWith(
               color: Colors.white.withValues(alpha: 0.75),
               fontWeight: FontWeight.w700,
@@ -479,7 +486,7 @@ class TimerScreenState extends State<TimerScreen> {
           Icon(Icons.emoji_events_outlined, size: 64, color: color),
           const SizedBox(height: 16),
           Text(
-            'Workout complete',
+            AppLocalizations.of(context).workoutComplete,
             style: theme.textTheme.headlineSmall?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,
@@ -488,7 +495,7 @@ class TimerScreenState extends State<TimerScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Nice work! Take a breather or start another session.',
+            AppLocalizations.of(context).workoutCompleteMessage,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.7),
             ),
@@ -525,7 +532,7 @@ class TimerScreenState extends State<TimerScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _phaseLabel,
+                          _phaseLabel(context),
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: Colors.white.withValues(alpha: 0.68),
                             fontWeight: FontWeight.w700,
@@ -553,7 +560,7 @@ class TimerScreenState extends State<TimerScreen> {
               if (_hasRounds) ...[
                 const SizedBox(height: 18),
                 Text(
-                  'Round $_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
+                  '${AppLocalizations.of(context).round} $_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontWeight: FontWeight.w700,
@@ -570,6 +577,7 @@ class TimerScreenState extends State<TimerScreen> {
   Widget _buildControls(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     if (_isCountdownActive) {
       return const SizedBox(height: 56);
@@ -601,7 +609,7 @@ class TimerScreenState extends State<TimerScreen> {
               style: elevatedStyle,
               onPressed: _resetTimer,
               icon: const Icon(Icons.replay),
-              label: const Text('Restart'),
+              label: Text(l10n.restart),
             ),
           ),
           const SizedBox(width: 12),
@@ -610,7 +618,7 @@ class TimerScreenState extends State<TimerScreen> {
               style: outlinedStyle,
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.check),
-              label: const Text('Done'),
+              label: Text(l10n.done),
             ),
           ),
         ],
@@ -624,7 +632,7 @@ class TimerScreenState extends State<TimerScreen> {
             style: elevatedStyle,
             onPressed: _isPaused ? _resumeTimer : _pauseTimer,
             icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-            label: Text(_isPaused ? 'Resume' : 'Pause'),
+            label: Text(_isPaused ? l10n.resume : l10n.pause),
           ),
         ),
         const SizedBox(width: 12),
@@ -633,7 +641,7 @@ class TimerScreenState extends State<TimerScreen> {
             style: outlinedStyle,
             onPressed: _resetTimer,
             icon: const Icon(Icons.restart_alt),
-            label: const Text('Reset'),
+            label: Text(l10n.reset),
           ),
         ),
       ],

@@ -58,6 +58,16 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            "ch.joshuahemmings.wodreplog/app_info",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getVersionName" -> result.success(readVersionName())
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             "ch.joshuahemmings.wodreplog/video_overlay",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -83,6 +93,10 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         stopBeep()
         super.onDestroy()
+    }
+
+    private fun readVersionName(): String {
+        return packageManager.getPackageInfo(packageName, 0).versionName ?: ""
     }
 
     @UnstableApi
@@ -114,6 +128,18 @@ class MainActivity : FlutterActivity() {
             timerIntervalSeconds = arguments["timerIntervalSeconds"] as? Int,
             timerRounds = arguments["timerRounds"] as? Int,
             timerTotalSeconds = arguments["timerTotalSeconds"] as? Int,
+            countdownSeconds = arguments["countdownSeconds"] as? Int ?: 0,
+            eventLabel = arguments["eventLabel"] as? String ?: "Event",
+            athleteLabel = arguments["athleteLabel"] as? String ?: "Athlete",
+            workoutLabel = arguments["workoutLabel"] as? String ?: "Workout",
+            roundLabel = arguments["roundLabel"] as? String ?: "Round",
+            countdownLabel = arguments["countdownLabel"] as? String ?: "Countdown",
+            startsInLabel = arguments["startsInLabel"] as? String ?: "Starts in",
+            nextStartLabel = arguments["nextStartLabel"] as? String ?: "Next start",
+            elapsedLabel = arguments["elapsedLabel"] as? String ?: "Elapsed",
+            remainingLabel = arguments["remainingLabel"] as? String ?: "Remaining",
+            remainingSuffix = arguments["remainingSuffix"] as? String ?: "remaining",
+            elapsedSuffix = arguments["elapsedSuffix"] as? String ?: "elapsed",
         )
 
         val effects = Effects(
@@ -187,6 +213,18 @@ private class ProofOverlay(
     private val timerIntervalSeconds: Int?,
     private val timerRounds: Int?,
     private val timerTotalSeconds: Int?,
+    private val countdownSeconds: Int,
+    private val eventLabel: String,
+    private val athleteLabel: String,
+    private val workoutLabel: String,
+    private val roundLabel: String,
+    private val countdownLabel: String,
+    private val startsInLabel: String,
+    private val nextStartLabel: String,
+    private val elapsedLabel: String,
+    private val remainingLabel: String,
+    private val remainingSuffix: String,
+    private val elapsedSuffix: String,
 ) : BitmapOverlay() {
     private var cachedSecond = -1
     private var cachedBitmap: Bitmap? = null
@@ -203,14 +241,14 @@ private class ProofOverlay(
     private fun drawOverlay(elapsedSeconds: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val scale = max(0.55f, min(width, height) / 1080f * 0.72f)
+        val scale = max(0.62f, min(width, height) / 1080f * 0.84f)
         val margin = 24f * scale
         val panelGap = 16f * scale
-        val panelWidth = min(width * 0.34f, 420f * scale)
+        val panelWidth = min(width * 0.38f, 480f * scale)
         val metadataLines = buildList {
-            if (eventName.isNotBlank()) add("EVENT" to eventName)
-            if (athleteName.isNotBlank()) add("ATHLETE" to athleteName)
-            if (workoutTitle.isNotBlank()) add("WORKOUT" to workoutTitle)
+            if (eventName.isNotBlank()) add(eventLabel to eventName)
+            if (athleteName.isNotBlank()) add(athleteLabel to athleteName)
+            if (workoutTitle.isNotBlank()) add(workoutLabel to workoutTitle)
         }
         val timerLines = buildTimerLines(elapsedSeconds)
 
@@ -336,38 +374,47 @@ private class ProofOverlay(
     }
 
     private fun buildTimerLines(elapsedSeconds: Int): List<Pair<String, String>> {
+        if (countdownSeconds > 0 && elapsedSeconds < countdownSeconds) {
+            val remaining = countdownSeconds - elapsedSeconds
+            return listOf(
+                countdownLabel to startsInLabel,
+                remainingLabel to "${remaining}s",
+            )
+        }
+
+        val workoutElapsedSeconds = max(elapsedSeconds - countdownSeconds, 0)
         return when (timerType) {
             "emom" -> {
                 val interval = timerIntervalSeconds ?: 60
                 val rounds = timerRounds ?: 0
-                val roundIndex = elapsedSeconds / interval + 1
+                val roundIndex = workoutElapsedSeconds / interval + 1
                 val currentRound = if (rounds > 0) min(roundIndex, rounds) else roundIndex
                 val primary = if (rounds > 0) {
-                    "Round $currentRound/$rounds"
+                    "$roundLabel $currentRound/$rounds"
                 } else {
-                    "Round $currentRound"
+                    "$roundLabel $currentRound"
                 }
-                val remaining = interval - (elapsedSeconds % interval)
+                val remaining = interval - (workoutElapsedSeconds % interval)
                 listOf(
                     "EMOM" to primary,
-                    "Next start" to formatSeconds(remaining),
-                    "Elapsed" to formatSeconds(elapsedSeconds),
+                    nextStartLabel to formatSeconds(remaining),
+                    elapsedLabel to formatSeconds(workoutElapsedSeconds),
                 )
             }
             "amrap" -> {
                 val total = timerTotalSeconds ?: 0
-                val remaining = max(total - elapsedSeconds, 0)
+                val remaining = max(total - workoutElapsedSeconds, 0)
                 listOf(
-                    "AMRAP" to "${formatSeconds(remaining)} remaining",
-                    "Elapsed" to formatSeconds(elapsedSeconds),
+                    "AMRAP" to "${formatSeconds(remaining)} $remainingSuffix",
+                    elapsedLabel to formatSeconds(workoutElapsedSeconds),
                 )
             }
             "forTime" -> {
                 val total = timerTotalSeconds ?: 0
-                val remaining = max(total - elapsedSeconds, 0)
+                val remaining = max(total - workoutElapsedSeconds, 0)
                 listOf(
-                    "For Time" to "${formatSeconds(elapsedSeconds)} elapsed",
-                    "Remaining" to formatSeconds(remaining),
+                    "For Time" to "${formatSeconds(workoutElapsedSeconds)} $elapsedSuffix",
+                    remainingLabel to formatSeconds(remaining),
                 )
             }
             else -> emptyList()

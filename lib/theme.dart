@@ -1,87 +1,93 @@
-// theme.dart
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  static const Color _surface = Color(0xFF111318);
+  static const Color _surfaceHigh = Color(0xFF1A1D24);
+  static const Color _blue = Color(0xFF2F80FF);
+  static const Color _green = Color(0xFF26D07C);
+  static const Color _orange = Color(0xFFFF9F1C);
+  static const Color _red = Color(0xFFFF4D5E);
+
   static ThemeData get lightTheme {
-    return ThemeData(
-      // Primary color scheme
-      primaryColor: const Color(0xFF1C1C1E), // Dark Charcoal
-      scaffoldBackgroundColor: const Color(0xFFEFEFF4), // Soft White
-
-      // Color scheme with secondary and tertiary colors
-      colorScheme: ColorScheme.fromSwatch(
-        primarySwatch: Colors.blue,
-        accentColor: const Color(0xFF007AFF), // Electric Blue
-      ).copyWith(
-        secondary: const Color(0xFF32FF7E), // Neon Green
-        tertiary: const Color(0xFFFF9500), // Fiery Orange
-        error: const Color(0xFFFF3B30), // Crimson Red
-        primary: const Color(0xFF1C1C1E), // Dark Charcoal
-      ),
-
-      // Text theme
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Color(0xFF8E8E93)), // Cool Gray
-        bodyMedium: TextStyle(color: Color(0xFF1C1C1E)), // Dark Charcoal
-      ),
-
-      // Button styling
-      buttonTheme: const ButtonThemeData(
-        buttonColor: Color(0xFF007AFF), // Electric Blue for buttons
-        textTheme: ButtonTextTheme.primary,
-      ),
-    );
+    return _base(Brightness.light);
   }
 
   static ThemeData get darkTheme {
+    return _base(Brightness.dark);
+  }
+
+  static ThemeData _base(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: _blue,
+      brightness: brightness,
+    ).copyWith(
+      primary: _blue,
+      onPrimary: Colors.white,
+      secondary: _green,
+      tertiary: _orange,
+      error: _red,
+      surface: isDark ? _surface : const Color(0xFFF7F8FA),
+      surfaceContainerHighest: isDark ? _surfaceHigh : Colors.white,
+      primaryContainer: const Color(0xFF234A73),
+      secondaryContainer: const Color(0xFF17513A),
+    );
+
     return ThemeData(
-      // Primary color scheme
-      primaryColor: const Color(0xFF1C1C1E), // Dark Charcoal
-      primaryColorDark: const Color(0xFF2C2C2E),
-      scaffoldBackgroundColor: const Color(0xFF2C2C2E),
-
-      // Text theme
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Color(0xFFEFEFF4)), // Cool Gray
-        bodyMedium: TextStyle(color: Color(0xFFEFEFF4)), // Dark Charcoal
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      fontFamily: 'Roboto',
+      textTheme: Typography.material2021(platform: TargetPlatform.android)
+          .white
+          .apply(
+            bodyColor: isDark ? Colors.white : const Color(0xFF111318),
+            displayColor: isDark ? Colors.white : const Color(0xFF111318),
+          ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF111318),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
       ),
-
-      // Button styling
-      buttonTheme: const ButtonThemeData(
-        buttonColor: Color(0xFFFF9500), // Electric Blue for buttons
-        textTheme: ButtonTextTheme.primary,
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: _blue,
+          minimumSize: const Size.fromHeight(54),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: const Color(0xFF007AFF),
+          backgroundColor: _blue,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1C1C1E),
-        titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 20,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: isDark ? 0.07 : 0.92),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
       ),
-      colorScheme: ColorScheme.fromSwatch(
-        primarySwatch: Colors.blue,
-        accentColor: const Color(0xFF007AFF), // Electric Blue
-      )
-          .copyWith(
-            secondary: const Color(0xFF32FF7E), // Neon Green
-            tertiary: const Color(0xFFFF9500), // Fiery Orange
-            error: const Color(0xFFFF3B30), // Crimson Red
-            primary: const Color(0xFF1C1C1E), // Dark Charcoal
-          )
-          .copyWith(secondary: const Color(0xFF007AFF)),
     );
   }
 }
 
 extension CustomColorScheme on ColorScheme {
-  Color get amrapColor => const Color(0xFFFF5722); // Amrap color (Orange)
-  Color get forTimeColor => const Color(0xFF4CAF50); // For Time color (Green)
-  Color get emomColor => const Color(0xFF2196F3); // Emom color (Blue)
-  Color get tabataColor => const Color(0xFFFFC107); // Tabata color (Amber)
+  Color get amrapColor => const Color(0xFFFF6B3D);
+  Color get forTimeColor => const Color(0xFF26D07C);
+  Color get emomColor => const Color(0xFF2F80FF);
+  Color get tabataColor => const Color(0xFFFFC247);
 }

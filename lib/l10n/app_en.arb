@@ -1,0 +1,201 @@
+{
+  "@@locale": "en",
+  "appTitle": "WODRepLog",
+  "appDescription": "Proof-ready recording and timers",
+  "homeQuestion": "What are you doing today?",
+  "homeSubtitle": "Start a qualification recording or build a standalone workout timer.",
+  "recordProofTitle": "Record Proof",
+  "recordProofSubtitle": "Film qualification workouts with embedded athlete, event, workout, and timer overlays.",
+  "cameraEyebrow": "Camera",
+  "workoutTimerTitle": "Workout Timer",
+  "workoutTimerSubtitle": "Run AMRAP, EMOM, For Time, or Tabata timers with clear workout-specific color cues.",
+  "timerEyebrow": "Timer",
+  "versionLabel": "Version {version}",
+  "@versionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "chooseFormatTitle": "Choose format",
+  "chooseFormatSubtitle": "Each timer keeps the controls simple and uses its own color while running.",
+  "configure": "Configure",
+  "amrapTitle": "AMRAP",
+  "amrapDescription": "As many reps as possible within the clock you set.",
+  "amrapCardDescription": "As many rounds or reps as possible.",
+  "forTimeTitle": "For Time",
+  "forTimeDescription": "Race the clock and capture your best effort.",
+  "forTimeCardDescription": "Race a target time or time cap.",
+  "emomTitle": "EMOM",
+  "emomDescription": "Every minute on the minute with automated prompts.",
+  "emomCardDescription": "Repeat work every minute or interval.",
+  "tabataTitle": "Tabata",
+  "tabataDescription": "Alternate intense work and purposeful rest.",
+  "tabataCardDescription": "Alternate work and rest rounds.",
+  "duration": "Duration",
+  "durationMinutes": "Duration (minutes)",
+  "durationHelper": "Tap to adjust minutes and seconds.",
+  "durationMinutesHelper": "Timer counts down from the duration you set.",
+  "timeCap": "Time cap",
+  "timeCapMinutes": "Time cap (minutes)",
+  "timeCapHelper": "Tap to pick minutes and seconds for your cap.",
+  "timeCapMinutesHelper": "Timer counts up, showing the time cap and remaining time.",
+  "rounds": "Rounds",
+  "roundsHelper": "Total work intervals you want to complete.",
+  "tabataRoundsHelper": "Number of cycles you want to complete.",
+  "intervalLength": "Interval length",
+  "intervalLengthSeconds": "Interval length (seconds)",
+  "intervalLengthHelper": "Minutes and seconds for each round.",
+  "intervalLengthSecondsHelper": "Length of each work period before the next start.",
+  "workInterval": "Work interval",
+  "workIntervalHelper": "Minutes and seconds for effort.",
+  "restInterval": "Rest interval",
+  "restIntervalHelper": "Dial in recovery between rounds.",
+  "startTimer": "Start Timer",
+  "done": "Done",
+  "timerTitle": "Timer",
+  "workout": "Workout",
+  "round": "Round",
+  "elapsed": "Elapsed",
+  "elapsedLowercase": "elapsed",
+  "remaining": "Remaining",
+  "remainingLowercase": "remaining",
+  "nextStartLabel": "Next start",
+  "getReady": "Get ready",
+  "complete": "Complete",
+  "timerPhase": "Timer",
+  "rest": "Rest",
+  "work": "Work",
+  "workoutComplete": "Workout complete",
+  "workoutCompleteMessage": "Nice work! Take a breather or start another session.",
+  "restart": "Restart",
+  "pause": "Pause",
+  "resume": "Resume",
+  "reset": "Reset",
+  "nextRest": "Next: Rest {time}",
+  "@nextRest": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "nextRound": "Next: Round {round}",
+  "@nextRound": {
+    "placeholders": {
+      "round": {}
+    }
+  },
+  "failedInitializeCamera": "Failed to initialize camera: {error}",
+  "@failedInitializeCamera": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "errorStartingRecording": "Error starting video recording: {error}",
+  "@errorStartingRecording": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "videoSaved": "Video with embedded overlay saved to gallery",
+  "failedSaveVideo": "Failed to save video to gallery",
+  "errorStoppingRecording": "Error stopping video recording: {error}",
+  "@errorStoppingRecording": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "stopBeforeClearing": "Stop recording before clearing the overlay.",
+  "timerInactive": "Timer inactive",
+  "emomRound": "EMOM • Round {round}",
+  "@emomRound": {
+    "placeholders": {
+      "round": {}
+    }
+  },
+  "amrapRemaining": "AMRAP • {time} remaining",
+  "@amrapRemaining": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "forTimeElapsed": "For Time • {time} elapsed",
+  "@forTimeElapsed": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "nextStartIn": "Next start in {time}",
+  "@nextStartIn": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "cap": "Cap {time}",
+  "@cap": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "targetRemaining": "Target {target} • {remaining} remaining",
+  "@targetRemaining": {
+    "placeholders": {
+      "target": {},
+      "remaining": {}
+    }
+  },
+  "event": "Event",
+  "athlete": "Athlete",
+  "tapDetailsOverlay": "Tap Details to add athlete and workout overlay.",
+  "rec": "REC",
+  "saving": "SAVING",
+  "details": "Details",
+  "recordingDetails": "Recording Details",
+  "athleteName": "Athlete name",
+  "athleteNameHint": "e.g. Sam Briggs",
+  "eventName": "Event name",
+  "eventNameHint": "e.g. Wodapalooza Qualifier",
+  "workoutQualifierTitle": "Workout / qualifier title",
+  "workoutTitleHint": "e.g. Qualifier 1 - Heavy Grace",
+  "countdown": "Countdown",
+  "startsIn": "Starts in",
+  "countdownSeconds": "Countdown (seconds)",
+  "countdownCaption": "Delay the workout timer after recording starts.",
+  "enterCountdownSeconds": "Enter countdown seconds",
+  "countdownNonNegative": "Countdown must be 0 or higher",
+  "timerType": "Timer type",
+  "timerTypeCaption": "Choose a format to overlay alongside the recording.",
+  "selectTimerType": "Select timer type",
+  "secondsExampleHint": "e.g. 60",
+  "roundsExampleHint": "e.g. 12",
+  "minutesExampleHint": "e.g. 20",
+  "noTimerOverlay": "No timer overlay",
+  "saveSettings": "Save settings",
+  "cancel": "Cancel",
+  "noTimerOverlayMessage": "No timer overlay will be shown. You can still start and stop recording normally.",
+  "roundsCaption": "How many intervals the EMOM should run.",
+  "enterIntervalLength": "Enter the interval length",
+  "intervalPositive": "Interval must be a positive number",
+  "enterRounds": "Enter number of rounds",
+  "roundsPositive": "Rounds must be a positive number",
+  "enterDurationMinutes": "Enter a duration in minutes",
+  "durationPositive": "Provide a positive number of minutes",
+  "minutesUnit": "{value} min",
+  "@minutesUnit": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "secondsUnit": "{value} sec",
+  "@secondsUnit": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "summary": "Summary",
+  "timeRound": "Time: {time}\nRound: {round}",
+  "@timeRound": {
+    "placeholders": {
+      "time": {},
+      "round": {}
+    }
+  }
+}
