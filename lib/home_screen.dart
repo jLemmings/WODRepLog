@@ -138,7 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListView.separated(
                     physics: const BouncingScrollPhysics(),
                     itemCount: options.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 14),
                     itemBuilder: (context, index) {
                       return _ActionPanel(option: options[index]);
                     },

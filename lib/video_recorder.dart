@@ -103,6 +103,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       if (!mounted) return;
       setState(() {});
     } catch (e) {
+      if (!mounted) return;
       _showErrorSnackBar(AppLocalizations.of(context).failedInitializeCamera(e.toString()));
     }
   }
@@ -118,12 +119,14 @@ class VideoRecorderState extends State<VideoRecorder> {
       });
       _startCountdownOrTimer();
     } catch (e) {
+      if (!mounted) return;
       _showErrorSnackBar(AppLocalizations.of(context).errorStartingRecording(e.toString()));
     }
   }
 
   Future<void> _stopRecording() async {
     if (!_controller.value.isInitialized || !_isRecording) return;
+    final l10n = AppLocalizations.of(context);
 
     try {
       final XFile videoFile = await _controller.stopVideoRecording();
@@ -140,13 +143,15 @@ class VideoRecorderState extends State<VideoRecorder> {
       final processedPath = await _embedOverlayInVideo(newFilePath);
 
       final bool? success = await GallerySaver.saveVideo(processedPath);
+      if (!mounted) return;
       if (success == true) {
-        _showSnackBar(AppLocalizations.of(context).videoSaved);
+        _showSnackBar(l10n.videoSaved);
       } else {
-        _showErrorSnackBar(AppLocalizations.of(context).failedSaveVideo);
+        _showErrorSnackBar(l10n.failedSaveVideo);
       }
     } catch (e) {
-      _showErrorSnackBar(AppLocalizations.of(context).errorStoppingRecording(e.toString()));
+      if (!mounted) return;
+      _showErrorSnackBar(l10n.errorStoppingRecording(e.toString()));
     } finally {
       if (mounted) {
         setState(() {
@@ -382,72 +387,6 @@ class VideoRecorderState extends State<VideoRecorder> {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String _timerPrimaryText(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final config = _timerConfig;
-    if (config == null) return l10n.timerInactive;
-
-    switch (config.type) {
-      case WorkoutTimerType.emom:
-        final interval = config.intervalSeconds ?? 60;
-        final rounds = config.rounds ?? 0;
-        final roundIndex = (_elapsed.inSeconds ~/ interval) + 1;
-        final currentRound = rounds > 0
-            ? math.min(roundIndex, rounds)
-            : roundIndex;
-        final roundLabel = rounds > 0
-            ? '$currentRound/$rounds'
-            : '$currentRound';
-        return l10n.emomRound(roundLabel);
-      case WorkoutTimerType.amrap:
-        final total = config.totalSeconds ?? 0;
-        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
-        return l10n.amrapRemaining(_formatDuration(remaining));
-      case WorkoutTimerType.forTime:
-        return l10n.forTimeElapsed(_formatDuration(_elapsed));
-    }
-  }
-
-  String? _timerSecondaryText(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final config = _timerConfig;
-    if (config == null) return null;
-
-    switch (config.type) {
-      case WorkoutTimerType.emom:
-        final interval = config.intervalSeconds ?? 60;
-        final withinInterval = _elapsed.inSeconds % interval;
-        final intervalRemaining = Duration(seconds: math.max(interval - withinInterval, 0));
-        return l10n.nextStartIn(_formatDuration(intervalRemaining));
-      case WorkoutTimerType.amrap:
-        final total = config.totalSeconds;
-        if (total == null) return null;
-        return l10n.cap(_formatDuration(Duration(seconds: total)));
-      case WorkoutTimerType.forTime:
-        final total = config.totalSeconds;
-        if (total == null) return null;
-        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
-        return l10n.targetRemaining(_formatDuration(Duration(seconds: total)), _formatDuration(remaining));
-    }
-  }
-
-  double? _timerProgress() {
-    final config = _timerConfig;
-    if (config == null) return null;
-
-    switch (config.type) {
-      case WorkoutTimerType.emom:
-        final totalRoundSeconds = (config.intervalSeconds ?? 0) * (config.rounds ?? 0);
-        if (totalRoundSeconds <= 0) return null;
-        return (_elapsed.inSeconds / totalRoundSeconds).clamp(0, 1);
-      case WorkoutTimerType.amrap:
-      case WorkoutTimerType.forTime:
-        final total = config.totalSeconds ?? 0;
-        if (total <= 0) return null;
-        return (_elapsed.inSeconds / total).clamp(0, 1);
-    }
   }
 
   void _showSnackBar(String message) {
