@@ -63,6 +63,8 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalSeconds,
+              workoutName: 'For Time',
+              accentColor: accentColor,
             ),
           ),
         );

@@ -63,6 +63,8 @@ class AmrapSettingsState extends State<AmrapSettings> {
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalTime,
+              workoutName: 'AMRAP',
+              accentColor: accentColor,
             ),
           ),
         );
