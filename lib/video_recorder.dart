@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:path/path.dart' as path;
 
+import 'l10n/app_localizations.dart';
+
 enum WorkoutTimerType { emom, amrap, forTime }
 
 class TimerConfiguration {
@@ -30,12 +32,14 @@ class RecorderSettings {
     required this.athleteName,
     required this.eventName,
     required this.workoutTitle,
+    required this.countdownSeconds,
     this.timerConfiguration,
   });
 
   final String athleteName;
   final String eventName;
   final String workoutTitle;
+  final int countdownSeconds;
   final TimerConfiguration? timerConfiguration;
 }
 
@@ -50,12 +54,21 @@ class VideoRecorderState extends State<VideoRecorder> {
   static const MethodChannel _videoOverlayChannel = MethodChannel(
     'ch.joshuahemmings.wodreplog/video_overlay',
   );
+  static const MethodChannel _beepChannel = MethodChannel(
+    'ch.joshuahemmings.wodreplog/beep',
+  );
+  static const Duration _countdownBeepDuration = Duration(milliseconds: 180);
+  static const Duration _startBeepDuration = Duration(seconds: 2);
 
   late CameraController _controller;
   bool _isRecording = false;
   bool _isProcessingVideo = false;
+  bool _isCountingDown = false;
   Timer? _ticker;
+  Timer? _countdownTicker;
   Duration _elapsed = Duration.zero;
+  int _countdownSeconds = 10;
+  int _countdownRemaining = 0;
 
   String _athleteName = '';
   String _eventName = '';
@@ -66,22 +79,17 @@ class VideoRecorderState extends State<VideoRecorder> {
     super.initState();
     _initializeCamera();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _countdownTicker?.cancel();
+    unawaited(_stopNativeBeep());
     _controller.dispose();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -95,7 +103,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       if (!mounted) return;
       setState(() {});
     } catch (e) {
-      _showErrorSnackBar('Failed to initialize camera: $e');
+      _showErrorSnackBar(AppLocalizations.of(context).failedInitializeCamera(e.toString()));
     }
   }
 
@@ -106,10 +114,11 @@ class VideoRecorderState extends State<VideoRecorder> {
       await _controller.startVideoRecording();
       setState(() {
         _isRecording = true;
+        _elapsed = Duration.zero;
       });
-      _startTimerTicker();
+      _startCountdownOrTimer();
     } catch (e) {
-      _showErrorSnackBar('Error starting video recording: $e');
+      _showErrorSnackBar(AppLocalizations.of(context).errorStartingRecording(e.toString()));
     }
   }
 
@@ -123,6 +132,8 @@ class VideoRecorderState extends State<VideoRecorder> {
         _isProcessingVideo = true;
       });
       _stopTimerTicker(resetElapsed: false);
+      _stopCountdown(resetRemaining: true);
+      unawaited(_stopNativeBeep());
 
       final newFilePath = '${path.withoutExtension(videoFile.path)}.mp4';
       await File(videoFile.path).rename(newFilePath);
@@ -130,12 +141,12 @@ class VideoRecorderState extends State<VideoRecorder> {
 
       final bool? success = await GallerySaver.saveVideo(processedPath);
       if (success == true) {
-        _showSnackBar('Video with embedded overlay saved to gallery');
+        _showSnackBar(AppLocalizations.of(context).videoSaved);
       } else {
-        _showErrorSnackBar('Failed to save video to gallery');
+        _showErrorSnackBar(AppLocalizations.of(context).failedSaveVideo);
       }
     } catch (e) {
-      _showErrorSnackBar('Error stopping video recording: $e');
+      _showErrorSnackBar(AppLocalizations.of(context).errorStoppingRecording(e.toString()));
     } finally {
       if (mounted) {
         setState(() {
@@ -151,6 +162,7 @@ class VideoRecorderState extends State<VideoRecorder> {
     }
 
     final outputPath = '${path.withoutExtension(inputPath)}_proof.mp4';
+    final l10n = AppLocalizations.of(context);
     try {
       final result = await _videoOverlayChannel.invokeMethod<String>(
         'embedOverlay',
@@ -164,6 +176,18 @@ class VideoRecorderState extends State<VideoRecorder> {
           'timerIntervalSeconds': _timerConfig?.intervalSeconds,
           'timerRounds': _timerConfig?.rounds,
           'timerTotalSeconds': _timerConfig?.totalSeconds,
+          'countdownSeconds': _countdownSeconds,
+          'eventLabel': l10n.event,
+          'athleteLabel': l10n.athlete,
+          'workoutLabel': l10n.workout,
+          'roundLabel': l10n.round,
+          'countdownLabel': l10n.countdown,
+          'startsInLabel': l10n.startsIn,
+          'nextStartLabel': l10n.nextStartLabel,
+          'elapsedLabel': l10n.elapsed,
+          'remainingLabel': l10n.remaining,
+          'remainingSuffix': l10n.remainingLowercase,
+          'elapsedSuffix': l10n.elapsedLowercase,
         },
       );
 
@@ -177,7 +201,79 @@ class VideoRecorderState extends State<VideoRecorder> {
       _athleteName.isNotEmpty ||
       _eventName.isNotEmpty ||
       _workoutTitle.isNotEmpty ||
-      _timerConfig != null;
+      _timerConfig != null ||
+      _countdownSeconds > 0;
+
+  void _startCountdownOrTimer() {
+    if (_countdownSeconds > 0) {
+      _startCountdown();
+    } else {
+      _startTimerTicker();
+    }
+  }
+
+  void _startCountdown() {
+    _stopTimerTicker(resetElapsed: true);
+    _countdownTicker?.cancel();
+    setState(() {
+      _isCountingDown = true;
+      _countdownRemaining = _countdownSeconds;
+    });
+    unawaited(_playNativeBeep(_countdownBeepDuration));
+
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdownRemaining <= 1) {
+        timer.cancel();
+        _countdownTicker = null;
+        setState(() {
+          _isCountingDown = false;
+          _countdownRemaining = 0;
+        });
+        unawaited(_playNativeBeep(_startBeepDuration));
+        _startTimerTicker();
+        return;
+      }
+
+      setState(() {
+        _countdownRemaining -= 1;
+      });
+      unawaited(_playNativeBeep(_countdownBeepDuration));
+    });
+  }
+
+  void _stopCountdown({bool resetRemaining = true}) {
+    _countdownTicker?.cancel();
+    _countdownTicker = null;
+    if (resetRemaining) {
+      setState(() {
+        _isCountingDown = false;
+        _countdownRemaining = 0;
+      });
+    }
+  }
+
+  Future<void> _playNativeBeep(Duration duration) async {
+    try {
+      await _beepChannel.invokeMethod<void>('playBeep', {
+        'durationMs': duration.inMilliseconds,
+      });
+    } on MissingPluginException {
+      // Recording should still work if native audio cues are unavailable.
+    } on PlatformException {
+      // Recording should still work if native audio cues are unavailable.
+    }
+  }
+
+  Future<void> _stopNativeBeep() async {
+    try {
+      await _beepChannel.invokeMethod<void>('stopBeep');
+    } on MissingPluginException {
+      // Recording should still work if native audio cues are unavailable.
+    } on PlatformException {
+      // Recording should still work if native audio cues are unavailable.
+    }
+  }
+
   void _startTimerTicker() {
     _ticker?.cancel();
     _elapsed = Duration.zero;
@@ -201,6 +297,7 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   void _stopTimerTicker({bool resetElapsed = true}) {
     _ticker?.cancel();
+    _ticker = null;
     if (resetElapsed) {
       setState(() {
         _elapsed = Duration.zero;
@@ -237,6 +334,7 @@ class VideoRecorderState extends State<VideoRecorder> {
         athleteName: _athleteName,
         eventName: _eventName,
         workoutTitle: _workoutTitle,
+        countdownSeconds: _countdownSeconds,
         timerConfiguration: _timerConfig,
       ),
     );
@@ -248,18 +346,22 @@ class VideoRecorderState extends State<VideoRecorder> {
       _eventName = result.eventName.trim();
       _workoutTitle = result.workoutTitle.trim();
       _timerConfig = result.timerConfiguration;
+      _countdownSeconds = result.countdownSeconds;
       _elapsed = Duration.zero;
+      _countdownRemaining = 0;
+      _isCountingDown = false;
     });
 
     _ticker?.cancel();
+    _countdownTicker?.cancel();
     if (_isRecording) {
-      _startTimerTicker();
+      _startCountdownOrTimer();
     }
   }
 
   void _clearOverlay() {
     if (_isRecording) {
-      _showErrorSnackBar('Stop recording before clearing the overlay.');
+      _showErrorSnackBar(AppLocalizations.of(context).stopBeforeClearing);
       return;
     }
 
@@ -268,8 +370,12 @@ class VideoRecorderState extends State<VideoRecorder> {
       _eventName = '';
       _workoutTitle = '';
       _timerConfig = null;
+      _countdownSeconds = 0;
       _elapsed = Duration.zero;
+      _countdownRemaining = 0;
+      _isCountingDown = false;
     });
+    _countdownTicker?.cancel();
     _ticker?.cancel();
   }
   String _formatDuration(Duration duration) {
@@ -278,9 +384,10 @@ class VideoRecorderState extends State<VideoRecorder> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  String _timerPrimaryText() {
+  String _timerPrimaryText(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final config = _timerConfig;
-    if (config == null) return 'Timer inactive';
+    if (config == null) return l10n.timerInactive;
 
     switch (config.type) {
       case WorkoutTimerType.emom:
@@ -293,17 +400,18 @@ class VideoRecorderState extends State<VideoRecorder> {
         final roundLabel = rounds > 0
             ? '$currentRound/$rounds'
             : '$currentRound';
-        return 'EMOM • Round $roundLabel';
+        return l10n.emomRound(roundLabel);
       case WorkoutTimerType.amrap:
         final total = config.totalSeconds ?? 0;
         final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
-        return 'AMRAP • ${_formatDuration(remaining)} remaining';
+        return l10n.amrapRemaining(_formatDuration(remaining));
       case WorkoutTimerType.forTime:
-        return 'For Time • ${_formatDuration(_elapsed)} elapsed';
+        return l10n.forTimeElapsed(_formatDuration(_elapsed));
     }
   }
 
-  String? _timerSecondaryText() {
+  String? _timerSecondaryText(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final config = _timerConfig;
     if (config == null) return null;
 
@@ -312,16 +420,16 @@ class VideoRecorderState extends State<VideoRecorder> {
         final interval = config.intervalSeconds ?? 60;
         final withinInterval = _elapsed.inSeconds % interval;
         final intervalRemaining = Duration(seconds: math.max(interval - withinInterval, 0));
-        return 'Next start in ${_formatDuration(intervalRemaining)}';
+        return l10n.nextStartIn(_formatDuration(intervalRemaining));
       case WorkoutTimerType.amrap:
         final total = config.totalSeconds;
         if (total == null) return null;
-        return 'Cap ${_formatDuration(Duration(seconds: total))}';
+        return l10n.cap(_formatDuration(Duration(seconds: total)));
       case WorkoutTimerType.forTime:
         final total = config.totalSeconds;
         if (total == null) return null;
         final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
-        return 'Target ${_formatDuration(Duration(seconds: total))} • ${_formatDuration(remaining)} remaining';
+        return l10n.targetRemaining(_formatDuration(Duration(seconds: total)), _formatDuration(remaining));
     }
   }
 
@@ -360,15 +468,12 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
   Widget _buildCameraPreview() {
     return Center(
-      child: Transform.rotate(
-        angle: math.pi,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: _controller.value.previewSize!.width,
-            height: _controller.value.previewSize!.height,
-            child: CameraPreview(_controller),
-          ),
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _controller.value.previewSize!.width,
+          height: _controller.value.previewSize!.height,
+          child: CameraPreview(_controller),
         ),
       ),
     );
@@ -378,157 +483,90 @@ class VideoRecorderState extends State<VideoRecorder> {
     final hasAthlete = _athleteName.isNotEmpty;
     final hasEvent = _eventName.isNotEmpty;
     final hasWorkout = _workoutTitle.isNotEmpty;
-    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
-    return Align(
-      alignment: Alignment.topLeft,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Container(
-            width: 320,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.black.withValues(alpha: 0.45),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            child: hasAthlete || hasEvent || hasWorkout
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasEvent)
-                        _MetadataRow(
-                          icon: Icons.flag,
-                          label: 'Event',
-                          value: _eventName,
-                          labelStyle: theme.textTheme.labelMedium,
-                        ),
-                      if (hasAthlete) ...[
-                        if (hasEvent) const SizedBox(height: 12),
-                        _MetadataRow(
-                          icon: Icons.person,
-                          label: 'Athlete',
-                          value: _athleteName,
-                          labelStyle: theme.textTheme.labelMedium,
-                        ),
-                      ],
-                      if (hasWorkout) ...[
-                        if (hasAthlete || hasEvent) const SizedBox(height: 12),
-                        _MetadataRow(
-                          icon: Icons.fitness_center,
-                          label: 'Workout',
-                          value: _workoutTitle,
-                          labelStyle: theme.textTheme.labelMedium,
-                        ),
-                      ],
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.white.withValues(alpha: 0.8)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Tap Details to add athlete and workout overlay.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
+    if (!hasAthlete && !hasEvent && !hasWorkout) {
+      return const SizedBox.shrink();
+    }
+
+    final lines = <_OverlayLine>[
+      if (hasEvent) _OverlayLine(l10n.event, _eventName),
+      if (hasAthlete) _OverlayLine(l10n.athlete, _athleteName),
+      if (hasWorkout) _OverlayLine(l10n.workout, _workoutTitle),
+    ];
+
+    return _ProofOverlayPanel(
+      alignment: Alignment.bottomLeft,
+      lines: lines,
     );
   }
 
   Widget _buildTimerOverlay(BuildContext context) {
     final config = _timerConfig;
-    if (config == null) {
+    if (config == null && !_isCountingDown) {
       return const SizedBox.shrink();
     }
 
-    final primary = _timerPrimaryText();
-    final secondary = _timerSecondaryText();
-    final progress = _timerProgress();
-    final theme = Theme.of(context);
+    final lines = _previewTimerLines(context);
 
-    return Align(
-      alignment: Alignment.topRight,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Container(
-            width: 280,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.black.withValues(alpha: 0.45),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  primary,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  secondary ?? ' ',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.75),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _formatDuration(_elapsed),
-                  style: theme.textTheme.displaySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (progress != null) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.lightGreenAccent),
-                      minHeight: 6,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _ProofOverlayPanel(
+      alignment: Alignment.bottomRight,
+      lines: lines,
     );
   }
+
+  List<_OverlayLine> _previewTimerLines(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (_isCountingDown) {
+      return [
+        _OverlayLine(l10n.countdown, l10n.startsIn),
+        _OverlayLine(l10n.remaining, '${_countdownRemaining}s'),
+      ];
+    }
+
+    final config = _timerConfig;
+    if (config == null) return const [];
+
+    switch (config.type) {
+      case WorkoutTimerType.emom:
+        final interval = config.intervalSeconds ?? 60;
+        final rounds = config.rounds ?? 0;
+        final roundIndex = (_elapsed.inSeconds ~/ interval) + 1;
+        final currentRound = rounds > 0 ? math.min(roundIndex, rounds) : roundIndex;
+        final primary = rounds > 0
+            ? '${l10n.round} $currentRound/$rounds'
+            : '${l10n.round} $currentRound';
+        final withinInterval = _elapsed.inSeconds % interval;
+        final remaining = Duration(seconds: math.max(interval - withinInterval, 0));
+        return [
+          _OverlayLine(l10n.emomTitle, primary),
+          _OverlayLine(l10n.nextStartLabel, _formatDuration(remaining)),
+          _OverlayLine(l10n.elapsed, _formatDuration(_elapsed)),
+        ];
+      case WorkoutTimerType.amrap:
+        final total = config.totalSeconds ?? 0;
+        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
+        return [
+          _OverlayLine(
+            l10n.amrapTitle,
+            '${_formatDuration(remaining)} ${l10n.remainingLowercase}',
+          ),
+          _OverlayLine(l10n.elapsed, _formatDuration(_elapsed)),
+        ];
+      case WorkoutTimerType.forTime:
+        final total = config.totalSeconds ?? 0;
+        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
+        return [
+          _OverlayLine(
+            l10n.forTimeTitle,
+            '${_formatDuration(_elapsed)} ${l10n.elapsedLowercase}',
+          ),
+          _OverlayLine(l10n.remaining, _formatDuration(remaining)),
+        ];
+    }
+  }
   Widget _buildRecordingBadge() {
+    final l10n = AppLocalizations.of(context);
     return Align(
       alignment: Alignment.topCenter,
       child: SafeArea(
@@ -536,7 +574,7 @@ class VideoRecorderState extends State<VideoRecorder> {
           opacity: _isRecording || _isProcessingVideo ? 1 : 0,
           duration: const Duration(milliseconds: 250),
           child: Padding(
-            padding: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.only(top: 90),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -559,7 +597,7 @@ class VideoRecorderState extends State<VideoRecorder> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isProcessingVideo ? 'SAVING' : 'REC',
+                    _isProcessingVideo ? l10n.saving : l10n.rec,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -592,113 +630,180 @@ class VideoRecorderState extends State<VideoRecorder> {
           _buildMetadataOverlay(context),
           _buildTimerOverlay(context),
           _buildRecordingBadge(),
-          _buildControlBar(context),
+          _buildTopActions(context),
+          _buildRecordControl(),
         ],
       ),
     );
   }
 
-  Widget _buildControlBar(BuildContext context) {
+  Widget _buildTopActions(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Align(
-      alignment: Alignment.bottomCenter,
+      alignment: Alignment.topCenter,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: _ControlButton(
-                  icon: Icons.badge,
-                  label: 'Details',
-                  onPressed: _openSettingsSheet,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ControlButton(
+                    icon: Icons.badge_rounded,
+                    label: l10n.details,
+                    onPressed: _isRecording || _isProcessingVideo
+                        ? null
+                        : _openSettingsSheet,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 18),
-              _RecordButton(
-                isRecording: _isRecording,
-                onPressed: _isProcessingVideo
-                    ? null
-                    : _isRecording
-                        ? _stopRecording
-                        : _startRecording,
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: _ControlButton(
-                  icon: Icons.layers_clear,
-                  label: 'Reset',
-                  onPressed: _athleteName.isEmpty &&
-                          _eventName.isEmpty &&
-                          _workoutTitle.isEmpty &&
-                          _timerConfig == null
-                      ? null
-                      : _clearOverlay,
-                  tone: ControlButtonTone.subtle,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ControlButton(
+                    icon: Icons.restart_alt_rounded,
+                    label: l10n.reset,
+                    onPressed: _isRecording ||
+                            _isProcessingVideo ||
+                            (_athleteName.isEmpty &&
+                                _eventName.isEmpty &&
+                                _workoutTitle.isEmpty &&
+                                _timerConfig == null &&
+                                _countdownSeconds <= 0)
+                        ? null
+                        : _clearOverlay,
+                    tone: ControlButtonTone.subtle,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-}
-
-class _MetadataRow extends StatelessWidget {
-  const _MetadataRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.labelStyle,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final TextStyle? labelStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.white, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label.toUpperCase(),
-                style: labelStyle?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w600,
-                    ) ??
-                    theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+  Widget _buildRecordControl() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 18),
+          child: _RecordButton(
+            isRecording: _isRecording,
+            onPressed: _isProcessingVideo
+                ? null
+                : _isRecording
+                    ? _stopRecording
+                    : _startRecording,
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
+class _OverlayLine {
+  const _OverlayLine(this.label, this.value);
+
+  final String label;
+  final String value;
+}
+class _ProofOverlayPanel extends StatelessWidget {
+  const _ProofOverlayPanel({
+    required this.alignment,
+    required this.lines,
+  });
+
+  final Alignment alignment;
+  final List<_OverlayLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
+
+    return Align(
+      alignment: alignment,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final panelWidth = math.min(availableWidth * 0.38, 220.0);
+          return Padding(
+            padding: const EdgeInsets.all(14),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: math.min(panelWidth, availableWidth),
+                maxWidth: math.min(panelWidth, availableWidth),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.black.withValues(alpha: 0.59),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    width: 0.8,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 12,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var index = 0; index < lines.length; index++) ...[
+                        if (index > 0) const SizedBox(height: 8),
+                        Text(
+                          lines[index].label.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: _clampedTextScaler(textScaler),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.68),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          lines[index].value,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: _clampedTextScaler(textScaler),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            height: 1.05,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  TextScaler _clampedTextScaler(TextScaler scaler) {
+    final value = scaler.scale(1).clamp(1.0, 1.15).toDouble();
+    return TextScaler.linear(value);
+  }
+}
 enum ControlButtonTone { primary, subtle }
 
 class _ControlButton extends StatelessWidget {
@@ -731,7 +836,7 @@ class _ControlButton extends StatelessWidget {
         child: Ink(
           height: 60,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
             color: background,
             border: Border.all(color: borderColor),
           ),
@@ -770,12 +875,15 @@ class _RecordButton extends StatelessWidget {
       onTap: onPressed,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        width: 90,
-        height: 90,
+        width: 84,
+        height: 84,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.1),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 2),
+          color: Colors.white.withValues(alpha: onPressed == null ? 0.04 : 0.1),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: onPressed == null ? 0.08 : 0.25),
+            width: 2,
+          ),
           boxShadow: [
             BoxShadow(
               color: isRecording
@@ -789,8 +897,8 @@ class _RecordButton extends StatelessWidget {
         child: Center(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            width: isRecording ? 36 : 60,
-            height: isRecording ? 36 : 60,
+            width: isRecording ? 34 : 56,
+            height: isRecording ? 34 : 56,
             decoration: BoxDecoration(
               color: isRecording ? Colors.redAccent : Colors.white,
               borderRadius: BorderRadius.circular(isRecording ? 10 : 999),
@@ -810,12 +918,14 @@ class RecorderSettingsSheet extends StatefulWidget {
     required this.athleteName,
     required this.eventName,
     required this.workoutTitle,
+    required this.countdownSeconds,
     this.timerConfiguration,
   });
 
   final String athleteName;
   final String eventName;
   final String workoutTitle;
+  final int countdownSeconds;
   final TimerConfiguration? timerConfiguration;
 
   @override
@@ -829,6 +939,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
   late final TextEditingController _durationController;
   late final TextEditingController _intervalController;
   late final TextEditingController _roundsController;
+  late final TextEditingController _countdownController;
 
   final _formKey = GlobalKey<FormState>();
   TimerTypeOption _selectedTimerType = TimerTypeOption.none;
@@ -842,6 +953,9 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
     _durationController = TextEditingController();
     _intervalController = TextEditingController();
     _roundsController = TextEditingController();
+    _countdownController = TextEditingController(
+      text: widget.countdownSeconds.toString(),
+    );
 
     final timer = widget.timerConfiguration;
     if (timer != null) {
@@ -871,6 +985,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
     _durationController.dispose();
     _intervalController.dispose();
     _roundsController.dispose();
+    _countdownController.dispose();
     super.dispose();
   }
 
@@ -953,6 +1068,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
         athleteName: _athleteController.text,
         eventName: _eventController.text,
         workoutTitle: _workoutController.text,
+        countdownSeconds: int.parse(_countdownController.text),
         timerConfiguration: timerConfig,
       ),
     );
@@ -962,6 +1078,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets),
@@ -989,64 +1106,85 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Recording Details',
+                      l10n.recordingDetails,
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
-                    const _FormFieldLabel(text: 'Athlete name'),
+                    _FormFieldLabel(text: l10n.athleteName),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _athleteController,
                       textCapitalization: TextCapitalization.words,
-                      decoration: _inputDecoration('e.g. Sam Briggs'),
+                      decoration: _inputDecoration(l10n.athleteNameHint),
                     ),
                     const SizedBox(height: 16),
-                    const _FormFieldLabel(text: 'Event name'),
+                    _FormFieldLabel(text: l10n.eventName),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _eventController,
                       textCapitalization: TextCapitalization.words,
-                      decoration: _inputDecoration('e.g. Wodapalooza Qualifier'),
+                      decoration: _inputDecoration(l10n.eventNameHint),
                     ),
                     const SizedBox(height: 16),
-                    const _FormFieldLabel(text: 'Workout / qualifier title'),
+                    _FormFieldLabel(text: l10n.workoutQualifierTitle),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _workoutController,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: _inputDecoration('e.g. Qualifier 1 - Heavy Grace'),
+                      decoration: _inputDecoration(l10n.workoutTitleHint),
+                    ),
+                    const SizedBox(height: 16),
+                    _FormFieldLabel(
+                      text: l10n.countdownSeconds,
+                      caption: l10n.countdownCaption,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _countdownController,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration(l10n.secondsExampleHint),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return l10n.enterCountdownSeconds;
+                        }
+                        final parsed = int.tryParse(value);
+                        if (parsed == null || parsed < 0) {
+                          return l10n.countdownNonNegative;
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Timer',
+                      l10n.timerTitle,
                       style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
-                    const _FormFieldLabel(
-                      text: 'Timer type',
-                      caption: 'Choose a format to overlay alongside the recording.',
+                    _FormFieldLabel(
+                      text: l10n.timerType,
+                      caption: l10n.timerTypeCaption,
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<TimerTypeOption>(
                       initialValue: _selectedTimerType,
                       isExpanded: true,
-                      decoration: _inputDecoration('Select timer type'),
-                      items: const [
+                      decoration: _inputDecoration(l10n.selectTimerType),
+                      items: [
                         DropdownMenuItem(
                           value: TimerTypeOption.none,
-                          child: Text('No timer overlay'),
+                          child: Text(l10n.noTimerOverlay),
                         ),
                         DropdownMenuItem(
                           value: TimerTypeOption.emom,
-                          child: Text('EMOM'),
+                          child: Text(l10n.emomTitle),
                         ),
                         DropdownMenuItem(
                           value: TimerTypeOption.amrap,
-                          child: Text('AMRAP'),
+                          child: Text(l10n.amrapTitle),
                         ),
                         DropdownMenuItem(
                           value: TimerTypeOption.forTime,
-                          child: Text('For Time'),
+                          child: Text(l10n.forTimeTitle),
                         ),
                       ],
                       onChanged: (value) {
@@ -1067,7 +1205,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                       child: FilledButton.icon(
                         onPressed: _handleSave,
                         icon: const Icon(Icons.check),
-                        label: const Text('Save settings'),
+                        label: Text(l10n.saveSettings),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1076,7 +1214,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                       child: OutlinedButton.icon(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close),
-                        label: const Text('Cancel'),
+                        label: Text(l10n.cancel),
                       ),
                     ),
                   ],
@@ -1090,15 +1228,14 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
   }
 
   Widget _buildTimerFields() {
+    final l10n = AppLocalizations.of(context);
     switch (_selectedTimerType) {
       case TimerTypeOption.none:
         return Container(
           key: const ValueKey('timer-none'),
           padding: const EdgeInsets.all(16),
           decoration: _panelDecoration(),
-          child: const Text(
-            'No timer overlay will be shown. You can still start and stop recording normally.',
-          ),
+          child: Text(l10n.noTimerOverlayMessage),
         );
       case TimerTypeOption.emom:
         return Container(
@@ -1108,43 +1245,43 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _FormFieldLabel(
-                text: 'Interval length (seconds)',
-                caption: 'Length of each work period before the next start.',
+              _FormFieldLabel(
+                text: l10n.intervalLengthSeconds,
+                caption: l10n.intervalLengthSecondsHelper,
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _intervalController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration('e.g. 60'),
+                decoration: _inputDecoration(l10n.secondsExampleHint),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Enter the interval length';
+                    return l10n.enterIntervalLength;
                   }
                   final parsed = int.tryParse(value);
                   if (parsed == null || parsed <= 0) {
-                    return 'Interval must be a positive number';
+                    return l10n.intervalPositive;
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
-              const _FormFieldLabel(
-                text: 'Rounds',
-                caption: 'How many intervals the EMOM should run.',
+              _FormFieldLabel(
+                text: l10n.rounds,
+                caption: l10n.roundsCaption,
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _roundsController,
                 keyboardType: TextInputType.number,
-                decoration: _inputDecoration('e.g. 12'),
+                decoration: _inputDecoration(l10n.roundsExampleHint),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Enter number of rounds';
+                    return l10n.enterRounds;
                   }
                   final parsed = int.tryParse(value);
                   if (parsed == null || parsed <= 0) {
-                    return 'Rounds must be a positive number';
+                    return l10n.roundsPositive;
                   }
                   return null;
                 },
@@ -1155,14 +1292,14 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
       case TimerTypeOption.amrap:
         return _buildMinutesField(
           key: const ValueKey('timer-amrap'),
-          label: 'Duration (minutes)',
-          helper: 'Timer counts down from the duration you set.',
+          label: l10n.durationMinutes,
+          helper: l10n.durationMinutesHelper,
         );
       case TimerTypeOption.forTime:
         return _buildMinutesField(
           key: const ValueKey('timer-for-time'),
-          label: 'Time cap (minutes)',
-          helper: 'Timer counts up, showing the time cap and remaining time.',
+          label: l10n.timeCapMinutes,
+          helper: l10n.timeCapMinutesHelper,
         );
     }
   }
@@ -1172,6 +1309,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
     required String label,
     required String helper,
   }) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       key: key,
       padding: const EdgeInsets.all(16),
@@ -1187,14 +1325,15 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
           TextFormField(
             controller: _durationController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: _inputDecoration('e.g. 20'),
+            decoration: _inputDecoration(l10n.minutesExampleHint),
             validator: (value) {
+              final l10n = AppLocalizations.of(context);
               if (value == null || value.isEmpty) {
-                return 'Enter a duration in minutes';
+                return l10n.enterDurationMinutes;
               }
               final parsed = double.tryParse(value.replaceAll(',', '.'));
               if (parsed == null || parsed <= 0) {
-                return 'Provide a positive number of minutes';
+                return l10n.durationPositive;
               }
               return null;
             },
@@ -1240,3 +1379,4 @@ class _FormFieldLabel extends StatelessWidget {
     );
   }
 }
+

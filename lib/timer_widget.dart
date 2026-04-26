@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'clock_painter.dart';
 import 'dart:async';
+import 'l10n/app_localizations.dart';
 
 class TimerWidget extends StatefulWidget {
   final int duration;
@@ -105,7 +106,10 @@ class TimerWidgetState extends State<TimerWidget>
         ),
         const SizedBox(height: 20),
         Text(
-          'Time: ${_formatTime(_currentTime)}\nRound: $_currentRound/${widget.rounds ?? 1}',
+          AppLocalizations.of(context).timeRound(
+            _formatTime(_currentTime),
+            '$_currentRound/${widget.rounds ?? 1}',
+          ),
           style: const TextStyle(fontSize: 32),
           textAlign: TextAlign.center,
         ),

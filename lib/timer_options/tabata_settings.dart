@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
 import 'timer_settings_layout.dart';
@@ -31,21 +32,22 @@ class TabataSettingsState extends State<TabataSettings> {
   @override
   Widget build(BuildContext context) {
     final accentColor = Theme.of(context).colorScheme.tabataColor;
+    final l10n = AppLocalizations.of(context);
     final workLabel = _formatTime(_workMinutes, _workSeconds);
     final restLabel = _formatTime(_restMinutes, _restSeconds);
     final totalLabel = _formatTime(_totalTime ~/ 60, _totalTime % 60);
 
     return TimerSettingsLayout(
       accentColor: accentColor,
-      title: 'Tabata',
-      subtitle: 'Alternate intense work and purposeful rest.',
+      title: l10n.tabataTitle,
+      subtitle: l10n.tabataDescription,
       icon: Icons.loop,
       content: [
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Rounds',
+          label: l10n.rounds,
           value: '$_rounds',
-          helper: 'Number of cycles you want to complete.',
+          helper: l10n.tabataRoundsHelper,
           icon: Icons.replay_circle_filled,
           onTap: () {
             _showPicker(
@@ -61,9 +63,9 @@ class TabataSettingsState extends State<TabataSettings> {
         ),
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Work interval',
+          label: l10n.workInterval,
           value: workLabel,
-          helper: 'Minutes and seconds for effort.',
+          helper: l10n.workIntervalHelper,
           icon: Icons.fitness_center,
           onTap: () {
             _showTimePicker(
@@ -82,9 +84,9 @@ class TabataSettingsState extends State<TabataSettings> {
         ),
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Rest interval',
+          label: l10n.restInterval,
           value: restLabel,
-          helper: 'Dial in recovery between rounds.',
+          helper: l10n.restIntervalHelper,
           icon: Icons.bedtime,
           onTap: () {
             _showTimePicker(
@@ -103,14 +105,14 @@ class TabataSettingsState extends State<TabataSettings> {
         ),
       ],
       workoutDuration: totalLabel,
-      primaryLabel: 'Start Timer',
+      primaryLabel: l10n.startTimer,
       onPrimaryPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _workInterval,
-              workoutName: 'Tabata',
+              workoutName: l10n.tabataTitle,
               accentColor: accentColor,
               interval: _restInterval,
               rounds: _rounds,
@@ -137,7 +139,8 @@ class TabataSettingsState extends State<TabataSettings> {
     );
 
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -175,7 +178,6 @@ class TabataSettingsState extends State<TabataSettings> {
                     children: [
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem: initialMinutes,
                           ),
@@ -191,7 +193,7 @@ class TabataSettingsState extends State<TabataSettings> {
                             60,
                             (index) => Center(
                               child: Text(
-                                '$index min',
+                                l10n.minutesUnit(index),
                                 style: pickerTextStyle,
                               ),
                             ),
@@ -200,7 +202,6 @@ class TabataSettingsState extends State<TabataSettings> {
                       ),
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: secondsController,
                           selectionOverlay:
                               CupertinoPickerDefaultSelectionOverlay(
@@ -214,7 +215,7 @@ class TabataSettingsState extends State<TabataSettings> {
                               .map(
                                 (sec) => Center(
                                   child: Text(
-                                    '$sec sec',
+                                    l10n.secondsUnit(sec),
                                     style: pickerTextStyle,
                                   ),
                                 ),
@@ -241,7 +242,13 @@ class TabataSettingsState extends State<TabataSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -264,7 +271,8 @@ class TabataSettingsState extends State<TabataSettings> {
   }) {
     final initialIndex = items.indexOf(initialValue);
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -298,7 +306,6 @@ class TabataSettingsState extends State<TabataSettings> {
               children: [
                 Expanded(
                   child: CupertinoPicker(
-                    backgroundColor: modalBackground,
                     itemExtent: 34.0,
                     scrollController: FixedExtentScrollController(
                       initialItem: initialIndex >= 0 ? initialIndex : 0,
@@ -337,7 +344,13 @@ class TabataSettingsState extends State<TabataSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },

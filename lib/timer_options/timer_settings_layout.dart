@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 class TimerSettingsLayout extends StatelessWidget {
   const TimerSettingsLayout({
     super.key,
@@ -25,101 +27,69 @@ class TimerSettingsLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      extendBodyBehindAppBar: false,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'WODRepLog',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+        title: Text(title),
+      ),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF101318), Color(0xFF161A21)],
           ),
         ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor:
-            theme.appBarTheme.backgroundColor ?? const Color(0xFF1C1C1E),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _TimerHeader(
-                      accentColor: accentColor,
-                      title: title,
-                      subtitle: subtitle,
-                      icon: icon,
-                    ),
-                    const SizedBox(height: 24),
-                    ..._withSpacing(content),
-                  ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _TimerHeader(
+                        accentColor: accentColor,
+                        title: title,
+                        subtitle: subtitle,
+                        icon: icon,
+                        duration: workoutDuration,
+                      ),
+                      const SizedBox(height: 18),
+                      ..._withSpacing(content),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF101318).withValues(alpha: 0.92),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                ),
+                child: FilledButton.icon(
                   onPressed: onPrimaryPressed,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text(primaryLabel),
                   style: FilledButton.styleFrom(
                     backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 20,
-                    ),
+                    foregroundColor: Colors.black,
                     textStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.6,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  child: workoutDuration == null
-                      ? Text(primaryLabel.toUpperCase())
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(primaryLabel.toUpperCase()),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.timer_outlined,
-                                  size: 16,
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  workoutDuration!,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -154,34 +124,27 @@ class TimerSettingsTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         splashColor: accentColor.withValues(alpha: 0.15),
         highlightColor: accentColor.withValues(alpha: 0.1),
-        child: Container(
-          padding: const EdgeInsets.all(20),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: Colors.white.withValues(alpha: 0.03),
-            border: Border.all(color: accentColor.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 14),
-              ),
-            ],
+            color: const Color(0xFF1D222B),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (icon != null) ...[
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 28),
+                  child: Icon(icon, color: accentColor, size: 26),
                 ),
-                const SizedBox(width: 18),
+                const SizedBox(width: 14),
               ],
               Expanded(
                 child: Column(
@@ -190,8 +153,8 @@ class TimerSettingsTile extends StatelessWidget {
                     Text(
                       label,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
                       ),
                     ),
                     if (helper != null) ...[
@@ -214,13 +177,13 @@ class TimerSettingsTile extends StatelessWidget {
                     value,
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: 0.4,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Icon(Icons.chevron_right,
-                      color: Colors.white.withValues(alpha: 0.65)),
+                      color: Colors.white.withValues(alpha: 0.56)),
                 ],
               ),
             ],
@@ -258,6 +221,7 @@ class TimerSummaryCard extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final dividerColor = Colors.white.withValues(alpha: 0.12);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -286,7 +250,7 @@ class TimerSummaryCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Summary',
+                l10n.summary,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -342,75 +306,84 @@ class _TimerHeader extends StatelessWidget {
     required this.accentColor,
     required this.title,
     required this.icon,
+    this.duration,
     this.subtitle,
   });
 
   final Color accentColor;
   final String title;
   final IconData icon;
+  final String? duration;
   final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accentColor.withValues(alpha: 0.3),
-            accentColor.withValues(alpha: 0.08),
-          ],
-        ),
-        border: Border.all(color: accentColor.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 18),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(22),
+        color: const Color(0xFF1D222B),
+        border: Border.all(color: accentColor.withValues(alpha: 0.28)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(icon, size: 32, color: Colors.white),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, size: 30, color: accentColor),
+              ),
+              const Spacer(),
+              if (duration != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_rounded, size: 16, color: accentColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        duration!,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.75),
-                    ),
-                  ),
-                ],
-              ],
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.66),
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -431,3 +404,5 @@ List<Widget> _withSpacing(List<Widget> children) {
   }
   return spaced;
 }
+
+

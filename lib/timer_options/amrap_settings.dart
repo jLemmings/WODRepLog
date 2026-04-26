@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
 import 'timer_settings_layout.dart';
@@ -25,19 +26,20 @@ class AmrapSettingsState extends State<AmrapSettings> {
   @override
   Widget build(BuildContext context) {
     final accentColor = Theme.of(context).colorScheme.amrapColor;
+    final l10n = AppLocalizations.of(context);
     final durationLabel = _formatTime(_minutes, _seconds);
 
     return TimerSettingsLayout(
       accentColor: accentColor,
-      title: 'AMRAP',
-      subtitle: 'As many reps as possible within the clock you set.',
+      title: l10n.amrapTitle,
+      subtitle: l10n.amrapDescription,
       icon: Icons.fitness_center,
       content: [
         TimerSettingsTile(
           accentColor: accentColor,
-          label: 'Duration',
+          label: l10n.duration,
           value: durationLabel,
-          helper: 'Tap to adjust minutes and seconds.',
+          helper: l10n.durationHelper,
           icon: Icons.timelapse,
           onTap: () {
             _showTimePicker(
@@ -56,14 +58,14 @@ class AmrapSettingsState extends State<AmrapSettings> {
         ),
       ],
       workoutDuration: durationLabel,
-      primaryLabel: 'Start Timer',
+      primaryLabel: l10n.startTimer,
       onPrimaryPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TimerScreen(
               duration: _totalTime,
-              workoutName: 'AMRAP',
+              workoutName: l10n.amrapTitle,
               accentColor: accentColor,
             ),
           ),
@@ -81,7 +83,8 @@ class AmrapSettingsState extends State<AmrapSettings> {
     required ValueChanged<int> onSecondsChanged,
   }) {
     final theme = Theme.of(context);
-    final modalBackground = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
+    const modalBackground = Color(0xFF101318);
     final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -119,7 +122,6 @@ class AmrapSettingsState extends State<AmrapSettings> {
                     children: [
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem: initialMinutes,
                           ),
@@ -135,7 +137,7 @@ class AmrapSettingsState extends State<AmrapSettings> {
                             60,
                             (index) => Center(
                               child: Text(
-                                '$index min',
+                                l10n.minutesUnit(index),
                                 style: pickerTextStyle,
                               ),
                             ),
@@ -144,7 +146,6 @@ class AmrapSettingsState extends State<AmrapSettings> {
                       ),
                       Expanded(
                         child: CupertinoPicker(
-                          backgroundColor: modalBackground,
                           scrollController: FixedExtentScrollController(
                             initialItem:
                                 [0, 15, 30, 45].indexOf(initialSeconds),
@@ -161,7 +162,7 @@ class AmrapSettingsState extends State<AmrapSettings> {
                               .map(
                                 (sec) => Center(
                                   child: Text(
-                                    '$sec sec',
+                                    l10n.secondsUnit(sec),
                                     style: pickerTextStyle,
                                   ),
                                 ),
@@ -188,7 +189,13 @@ class AmrapSettingsState extends State<AmrapSettings> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     color: accentColor,
                     borderRadius: BorderRadius.circular(14),
-                    child: const Text('Done'),
+                    child: Text(
+                      l10n.done,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                     },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/app_localizations.dart';
 import 'theme.dart';
 import 'timer_options/amrap_settings.dart';
 import 'timer_options/emom_settings.dart';
@@ -12,70 +13,60 @@ class TimerView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final options = _buildOptions(context);
 
     return Scaffold(
-      extendBodyBehindAppBar: false,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Timer Studio',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor:
-            theme.appBarTheme.backgroundColor ?? const Color(0xFF1C1C1E),
-        elevation: 0,
+        title: Text(l10n.workoutTimerTitle),
       ),
-      body: Container(
+      body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1F1F23),
-              Color(0xFF141418),
-            ],
+            colors: [Color(0xFF101318), Color(0xFF161A21)],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Choose your format',
+                  l10n.chooseFormatTitle,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Set up the perfect timer overlay to match your session.',
+                  l10n.chooseFormatSubtitle,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withValues(alpha: 0.65),
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 18),
                 Expanded(
-                  child: ListView.separated(
+                  child: GridView.builder(
                     physics: const BouncingScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.86,
+                    ),
                     itemCount: options.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 18),
                     itemBuilder: (context, index) {
-                      final option = options[index];
-                      return _TimerModeCard(option: option);
+                      return _TimerModeCard(option: options[index]);
                     },
                   ),
                 ),
@@ -89,32 +80,33 @@ class TimerView extends StatelessWidget {
 
   List<_TimerOptionData> _buildOptions(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return [
       _TimerOptionData(
-        title: 'AMRAP',
-        subtitle: 'Push the pace for as many reps as you can manage.',
-        icon: Icons.fitness_center,
+        title: l10n.amrapTitle,
+        subtitle: l10n.amrapCardDescription,
+        icon: Icons.fitness_center_rounded,
         color: colorScheme.amrapColor,
         builder: (context) => const AmrapSettings(),
       ),
       _TimerOptionData(
-        title: 'For Time',
-        subtitle: 'Race the clock and lock in your best time.',
-        icon: Icons.flag_circle,
+        title: l10n.forTimeTitle,
+        subtitle: l10n.forTimeCardDescription,
+        icon: Icons.flag_rounded,
         color: colorScheme.forTimeColor,
         builder: (context) => const ForTimeSettings(),
       ),
       _TimerOptionData(
-        title: 'EMOM',
-        subtitle: 'Automate your minute-by-minute training flow.',
-        icon: Icons.schedule,
+        title: l10n.emomTitle,
+        subtitle: l10n.emomCardDescription,
+        icon: Icons.schedule_rounded,
         color: colorScheme.emomColor,
         builder: (context) => const EmomSettings(),
       ),
       _TimerOptionData(
-        title: 'Tabata',
-        subtitle: 'Alternate intense work and focused rest.',
-        icon: Icons.bolt,
+        title: l10n.tabataTitle,
+        subtitle: l10n.tabataCardDescription,
+        icon: Icons.bolt_rounded,
         color: colorScheme.tabataColor,
         builder: (context) => const TabataSettings(),
       ),
@@ -123,14 +115,15 @@ class TimerView extends StatelessWidget {
 }
 
 class _TimerModeCard extends StatelessWidget {
-  const _TimerModeCard({
-    required this.option,
-  });
+  const _TimerModeCard({required this.option});
 
   final _TimerOptionData option;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -138,69 +131,63 @@ class _TimerModeCard extends StatelessWidget {
           context,
           MaterialPageRoute(builder: option.builder),
         ),
-        borderRadius: BorderRadius.circular(24),
-        splashColor: option.color.withValues(alpha: 0.1),
-        highlightColor: option.color.withValues(alpha: 0.08),
-        child: Container(
-          padding: const EdgeInsets.all(24),
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                option.color.withValues(alpha: 0.35),
-                option.color.withValues(alpha: 0.12),
-              ],
-            ),
-            border: Border.all(color: option.color.withValues(alpha: 0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: option.color.withValues(alpha: 0.25),
-                blurRadius: 24,
-                offset: const Offset(0, 16),
-              ),
-            ],
+            color: const Color(0xFF1D222B),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: option.color.withValues(alpha: 0.22)),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  color: option.color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(option.icon, size: 30, color: Colors.white),
+                child: Icon(option.icon, size: 28, color: option.color),
               ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      option.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      option.subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.75),
-                          ),
-                    ),
-                  ],
+              const Spacer(),
+              Text(
+                option.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(width: 12),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.75),
-                size: 32,
+              const SizedBox(height: 7),
+              Text(
+                option.subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.62),
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Text(
+                    l10n.configure,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: option.color,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: option.color,
+                    size: 20,
+                  ),
+                ],
               ),
             ],
           ),
