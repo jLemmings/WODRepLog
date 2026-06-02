@@ -1,90 +1,102 @@
-﻿name: Publish Testing
+name: Create Release
 
 on:
   push:
     branches:
       - "master"
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  release:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
-    env:
-      # Setup env variables that will be used throughout the workflow
-      JAVA_VERSION: 19.0
 
     steps:
-      # Checkout repository codebase
       - name: Checkout the code
         uses: actions/checkout@v6
-
-      # Setup Java in the VM
-      - uses: actions/setup-java@v5
         with:
-          distribution: "temurin" # See 'Supported distributions' for available options
-          java-version: ${{ env.JAVA_VERSION }}
+          fetch-depth: 0
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      # Setup Java in the VM
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version-file: pubspec.yaml
 
-      # Run flutter commands
       - name: Install dependencies
         run: flutter pub get
 
       - name: Analyze project
         run: flutter analyze
 
-      - name: flutter doctor --verbose
-        run: flutter doctor --verbose
-
-      - name: Increment build number
+      - name: Read version info
         id: version
-        run: ./scripts/manage_version.sh increment-build
+        run: ./scripts/manage_version.sh current
 
-      - name: Export version info
+      - name: Check release eligibility
+        id: release_gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_VERSION: ${{ steps.version.outputs.new_version }}
         run: |
-          echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
+          set -euo pipefail
 
-      # Build bundle
-      - name: Build release app bundle
+          previous_version=""
+          if [ -n "$BEFORE_SHA" ] && \
+             [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && \
+             git cat-file -e "$BEFORE_SHA:pubspec.yaml" 2>/dev/null; then
+            previous_version="$(git show "$BEFORE_SHA:pubspec.yaml" | grep -E '^version:' | awk '{print $2}' | tr -d '\r')"
+          fi
+
+          version_changed=false
+          if [ -z "$previous_version" ] || [ "$previous_version" != "$CURRENT_VERSION" ]; then
+            version_changed=true
+          fi
+
+          release_tag="v${CURRENT_VERSION}"
+          release_exists=false
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            release_exists=true
+          fi
+
+          tag_exists=false
+          if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
+            tag_exists=true
+          fi
+
+          should_create=false
+          if [ "$version_changed" = true ] && \
+             [ "$release_exists" = false ] && \
+             [ "$tag_exists" = false ]; then
+            should_create=true
+          fi
+
+          {
+            echo "previous_version=$previous_version"
+            echo "current_version=$CURRENT_VERSION"
+            echo "tag=$release_tag"
+            echo "version_changed=$version_changed"
+            echo "release_exists=$release_exists"
+            echo "tag_exists=$tag_exists"
+            echo "should_create=$should_create"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$should_create" != true ]; then
+            echo "Skipping GitHub release for $CURRENT_VERSION."
+            echo "version_changed=$version_changed release_exists=$release_exists tag_exists=$tag_exists"
+          fi
+
+      - name: Create GitHub release
+        if: steps.release_gate.outputs.should_create == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_gate.outputs.tag }}
+          VERSION_NAME: ${{ steps.version.outputs.new_version }}
         run: |
-          flutter build appbundle \
-            --release \
-            --build-number=${{ env.VERSION_CODE }} \
-            --build-name=${{ env.VERSION_NAME }}
-
-      - name: Commit version bump
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore: bump test build number to ${{ steps.version.outputs.new_version }} [skip ci]"
-          branch: ${{ github.ref_name }}
-          file_pattern: pubspec.yaml
-
-      - name: Sign App Bundle
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: build/app/outputs/bundle/release/
-          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
-          alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
-
-      - name: Upload to Play Store (Internal Testing)
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
-          packageName: ch.joshuahemmings.wodreplog
-          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
-          releaseName: ${{ env.VERSION_NAME }}
-          mappingFile: build/app/outputs/mapping/release/mapping.txt
-          track: alpha
-
+          gh release create "$RELEASE_TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION_NAME" \
+            --generate-notes

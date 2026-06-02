@@ -82,25 +82,17 @@ jobs:
             echo "USE_DEBUG_SIGNING_FOR_RELEASE=true" >> "$GITHUB_ENV"
           fi
       
-      - name: Increment build number
+      - name: Read version info
         id: version
-        run: ./scripts/manage_version.sh increment-build
+        run: ./scripts/manage_version.sh current
 
       - name: Export version info
         run: |
           echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
           echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
 
-      # Build bundle
       - name: Build release APK
-        run: flutter build apk --split-per-abi --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
-
-      - name: Commit version bump
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore: increment dev build number to ${{ steps.version.outputs.new_version }} [skip ci]"
-          branch: ${{ github.ref_name }}
-          file_pattern: pubspec.yaml
+        run: flutter build apk --split-per-abi
 
       - name: Upload release APK
         if: success()

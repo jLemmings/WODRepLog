@@ -42,21 +42,20 @@ jobs:
       - name: flutter doctor --verbose
         run: flutter doctor --verbose
 
-      - name: Apply release version
+      - name: Read version info
         id: version
+        run: ./scripts/manage_version.sh current
+
+      - name: Validate release tag
         env:
-          RELEASE_NAME: ${{ github.event.release.name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          VERSION_NAME: ${{ steps.version.outputs.new_version }}
         run: |
-          release_input="${RELEASE_NAME:-}"
-          if [ -z "$release_input" ]; then
-            release_input="$RELEASE_TAG"
-          fi
-          if [ -z "$release_input" ]; then
-            echo "Release name or tag must be provided" >&2
+          set -euo pipefail
+          if [ "$RELEASE_TAG" != "$VERSION_NAME" ] && [ "$RELEASE_TAG" != "v$VERSION_NAME" ]; then
+            echo "Release tag '$RELEASE_TAG' must match pubspec version '$VERSION_NAME' or 'v$VERSION_NAME'." >&2
             exit 1
           fi
-          ./scripts/manage_version.sh release "$release_input"
 
       - name: Export version info
         run: |
@@ -64,16 +63,8 @@ jobs:
           echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
           echo "RELEASE_VERSION=${{ steps.version.outputs.base_version }}" >> "$GITHUB_ENV"
 
-      # Build bundle
       - name: Build release app bundle
-        run: flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
-
-      - name: Commit version bump
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "chore: prepare release version ${{ steps.version.outputs.new_version }} [skip ci]"
-          branch: ${{ github.event.repository.default_branch }}
-          file_pattern: pubspec.yaml
+        run: flutter build appbundle --release
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1

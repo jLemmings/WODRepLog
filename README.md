@@ -1,3 +1,5 @@
+![WODRepLog logo](assets/icon/app_icon.png)
+
 # wodreplog
 
 A new Flutter project.
@@ -54,7 +56,11 @@ The script:
 - enables debug signing fallback for local release APK builds
 
 ### Continuous delivery
-Pushing to the `master` branch triggers the **Build and Publish** GitHub Actions workflow, which automatically increments the build number in `pubspec.yaml`, commits the change, builds a signed release app bundle, and publishes it to the Google Play internal testing track using the configured service account credentials.
+GitHub Actions never changes `pubspec.yaml` automatically. Update the `version:` field manually when you want a new release.
+
+Pushing to `master` runs the **Create Release** workflow. It compares the checked-in `version:` string with the previous `master` commit. If the version changed and no `v<version>` GitHub release or tag exists, it creates a new GitHub Release. If the version is unchanged, it skips release creation.
+
+Publishing a GitHub Release runs the **Publish PROD** workflow, which validates the release tag matches the checked-in version, builds a signed release app bundle, and publishes it to the configured Google Play track.
 
 
 https://medium.com/lodgify-technology-blog/deploy-your-flutter-app-to-google-play-with-github-actions-f13a11c4492e
