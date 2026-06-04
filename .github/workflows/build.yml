@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Setup env variables that will be used throughout the workflow
-      JAVA_VERSION: 19.0
+      JAVA_VERSION: 21
 
     steps:
       # Checkout repository codebase
