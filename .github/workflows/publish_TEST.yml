@@ -41,22 +41,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_VERSION: ${{ steps.version.outputs.new_version }}
+          CURRENT_BASE_VERSION: ${{ steps.version.outputs.base_version }}
         run: |
           set -euo pipefail
 
           previous_version=""
+          previous_base_version=""
           if [ -n "$BEFORE_SHA" ] && \
              [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && \
              git cat-file -e "$BEFORE_SHA:pubspec.yaml" 2>/dev/null; then
             previous_version="$(git show "$BEFORE_SHA:pubspec.yaml" | grep -E '^version:' | awk '{print $2}' | tr -d '\r')"
+            previous_base_version="${previous_version%%+*}"
           fi
 
           version_changed=false
-          if [ -z "$previous_version" ] || [ "$previous_version" != "$CURRENT_VERSION" ]; then
+          if [ -z "$previous_base_version" ] || [ "$previous_base_version" != "$CURRENT_BASE_VERSION" ]; then
             version_changed=true
           fi
 
-          release_tag="v${CURRENT_VERSION}"
+          release_tag="v${CURRENT_BASE_VERSION}"
           release_exists=false
           if gh release view "$release_tag" >/dev/null 2>&1; then
             release_exists=true
@@ -76,7 +79,9 @@ jobs:
 
           {
             echo "previous_version=$previous_version"
+            echo "previous_base_version=$previous_base_version"
             echo "current_version=$CURRENT_VERSION"
+            echo "current_base_version=$CURRENT_BASE_VERSION"
             echo "tag=$release_tag"
             echo "version_changed=$version_changed"
             echo "release_exists=$release_exists"
@@ -86,7 +91,7 @@ jobs:
 
           if [ "$should_create" != true ]; then
             echo "Skipping GitHub release for $CURRENT_VERSION."
-            echo "version_changed=$version_changed release_exists=$release_exists tag_exists=$tag_exists"
+            echo "base_version_changed=$version_changed previous_base_version=$previous_base_version current_base_version=$CURRENT_BASE_VERSION release_exists=$release_exists tag_exists=$tag_exists"
           fi
 
       - name: Create GitHub release
@@ -94,7 +99,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release_gate.outputs.tag }}
-          VERSION_NAME: ${{ steps.version.outputs.new_version }}
+          VERSION_NAME: ${{ steps.version.outputs.base_version }}
         run: |
           gh release create "$RELEASE_TAG" \
             --target "$GITHUB_SHA" \

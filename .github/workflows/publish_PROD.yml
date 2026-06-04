@@ -49,7 +49,7 @@ jobs:
       - name: Validate release tag
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-          VERSION_NAME: ${{ steps.version.outputs.new_version }}
+          VERSION_NAME: ${{ steps.version.outputs.base_version }}
         run: |
           set -euo pipefail
           if [ "$RELEASE_TAG" != "$VERSION_NAME" ] && [ "$RELEASE_TAG" != "v$VERSION_NAME" ]; then
