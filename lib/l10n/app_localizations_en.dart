@@ -42,6 +42,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerEyebrow => 'Timer';
 
   @override
+  String get settings => 'Settings';
+
+  @override
+  String get preferredLanguage => 'Preferred language';
+
+  @override
+  String get selectLanguage => 'Select language';
+
+  @override
+  String get englishLanguage => 'English';
+
+  @override
+  String get germanLanguage => 'German';
+
+  @override
+  String athleteGreeting(Object name) {
+    return 'Athlete: $name';
+  }
+
+  @override
   String versionLabel(Object version) {
     return 'Version $version';
   }
