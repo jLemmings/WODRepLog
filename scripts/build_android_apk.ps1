@@ -71,6 +71,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $androidDir = Join-Path $repoRoot "android"
 $localPropertiesPath = Join-Path $androidDir "local.properties"
 $keyPropertiesPath = Join-Path $androidDir "key.properties"
+$pubspecPath = Join-Path $repoRoot "pubspec.yaml"
 $androidRegistrantPath = Join-Path $androidDir "app\\src\\main\\java\\io\\flutter\\plugins\\GeneratedPluginRegistrant.java"
 $flutterCommand = Get-Command flutter -ErrorAction SilentlyContinue
 $flutterSdkFromCommand = $null
@@ -151,6 +152,38 @@ if (-not $hasReleaseSigning) {
     $env:ANDROID_DEBUG_KEY_ALIAS = "androiddebugkey"
     $env:ANDROID_DEBUG_KEY_PASSWORD = "android"
     $env:USE_DEBUG_SIGNING_FOR_RELEASE = "true"
+}
+
+if (-not $BuildName) {
+    $versionLine = Get-Content $pubspecPath | Where-Object { $_ -match '^version:\s*' } | Select-Object -First 1
+    if (-not $versionLine) {
+        throw "Unable to find version in $pubspecPath."
+    }
+
+    $BuildName = (($versionLine -replace '^version:\s*', '').Trim() -split '\+')[0]
+}
+
+if (-not $BuildNumber) {
+    $versionParts = $BuildName.Split(".")
+    if ($versionParts.Count -ne 3) {
+        throw "BuildName must use major.minor.patch format, got '$BuildName'."
+    }
+
+    $major = [int]$versionParts[0]
+    $minor = [int]$versionParts[1]
+    $patch = [int]$versionParts[2]
+
+    if ($major -lt 0 -or $major -gt 20) {
+        throw "Major version component must be between 0 and 20, got $major."
+    }
+    if ($minor -lt 0 -or $minor -gt 99) {
+        throw "Minor version component must be between 0 and 99, got $minor."
+    }
+    if ($patch -lt 0 -or $patch -gt 99) {
+        throw "Patch version component must be between 0 and 99, got $patch."
+    }
+
+    $BuildNumber = ($major * 100000000) + ($minor * 1000000) + ($patch * 10000)
 }
 
 $buildArgs = @("build", "apk")

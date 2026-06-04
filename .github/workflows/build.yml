@@ -89,7 +89,7 @@ jobs:
       - name: Export version info
         run: |
           echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${{ steps.version.outputs.build_number }}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${{ steps.version.outputs.version_code }}" >> "$GITHUB_ENV"
 
       - name: Build release APK
         run: flutter build apk --split-per-abi

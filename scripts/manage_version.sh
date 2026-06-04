@@ -30,85 +30,75 @@ read_current_version() {
   echo "$current"
 }
 
-extract_build_number() {
-  local version=$1
-  if [[ $version == *+* ]]; then
-    local suffix=${version#*+}
-    if [[ $suffix =~ ^[0-9]+$ ]]; then
-      echo "$suffix"
-      return
-    fi
-    echo "Build number must be numeric, got '$suffix'" >&2
-    exit 1
-  fi
-  echo "0"
-}
-
 emit_outputs() {
-  local new_version=$1
-  local build_number=$2
+  local current_version=$1
+  local version_code=$2
   local base_version=$3
-  local build_suffix=$4
   if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     {
-      echo "new_version=$new_version"
-      echo "build_number=$build_number"
-      echo "version_name=$new_version"
-      echo "version_code=$build_number"
+      echo "new_version=$base_version"
+      echo "full_version=$current_version"
+      echo "version_name=$base_version"
+      echo "version_code=$version_code"
       echo "base_version=$base_version"
-      echo "build_suffix=$build_suffix"
     } >> "$GITHUB_OUTPUT"
   fi
-  echo "$new_version"
+  echo "$current_version"
 }
 
 current_version() {
-  local current core build version_code
+  local current core version_code
   current=$(read_current_version)
   if [[ "$current" == *+* ]]; then
     core=${current%%+*}
   else
     core=$current
   fi
-  build=$(extract_build_number "$current")
-  version_code=$(compute_version_code "$core" "$build")
-  emit_outputs "$current" "$version_code" "$core" "$build"
+  version_code=$(compute_version_code "$core")
+  emit_outputs "$current" "$version_code" "$core"
 }
 
 compute_version_code() {
   local core_version=$1
-  local build_suffix=$2
-  python - "$core_version" "$build_suffix" <<'PY'
-import sys
+  local major minor patch version_code
+  IFS=. read -r major minor patch extra <<< "$core_version"
+  if [[ -n "${extra:-}" || -z "${major:-}" || -z "${minor:-}" || -z "${patch:-}" ]]; then
+    echo "Version core must have three segments (major.minor.patch)" >&2
+    exit 1
+  fi
 
-core = sys.argv[1]
-suffix = sys.argv[2]
+  for component in "$major" "$minor" "$patch"; do
+    if [[ ! "$component" =~ ^[0-9]+$ ]]; then
+      echo "Version components must be integers" >&2
+      exit 1
+    fi
+  done
 
-parts = core.split('.')
-if len(parts) != 3:
-    raise SystemExit("Version core must have three segments (major.minor.patch)")
+  major=$((10#$major))
+  minor=$((10#$minor))
+  patch=$((10#$patch))
 
-try:
-    major, minor, patch = [int(part) for part in parts]
-    build = int(suffix)
-except ValueError as exc:
-    raise SystemExit(f"Version components must be integers: {exc}") from exc
+  ensure_range "major" "$major" 20
+  ensure_range "minor" "$minor" 99
+  ensure_range "patch" "$patch" 99
 
-def ensure_range(name, value, upper):
-    if value < 0 or value > upper:
-        raise SystemExit(f"{name} component must be between 0 and {upper}, got {value}")
+  version_code=$((major * 100000000 + minor * 1000000 + patch * 10000))
+  if (( version_code > 2100000000 )); then
+    echo "Computed version code exceeds Android limit of 2100000000" >&2
+    exit 1
+  fi
 
-ensure_range("major", major, 99)
-ensure_range("minor", minor, 99)
-ensure_range("patch", patch, 99)
-ensure_range("build", build, 9999)
+  echo "$version_code"
+}
 
-version_code = int(f"{major:02d}{minor:02d}{patch:02d}{build:04d}")
-if version_code > 2100000000:
-    raise SystemExit("Computed version code exceeds Android limit of 2100000000")
-
-print(version_code)
-PY
+ensure_range() {
+  local name=$1
+  local value=$2
+  local upper=$3
+  if (( value < 0 || value > upper )); then
+    echo "$name component must be between 0 and $upper, got $value" >&2
+    exit 1
+  fi
 }
 
 main() {

@@ -28,7 +28,7 @@ flutter emulators --launch Pixel_10
 flutter run
 
 ## Build
-- `pwsh ./scripts/build_android_apk.ps1 -BuildNumber 240036 -BuildName 0.0.24+36`
+- `pwsh ./scripts/build_android_apk.ps1`
 - `flutter build appbundle`
 - bundletool build-apks --bundle=build/app/outputs/bundle/release/app-release.aab --output=build/app/outputs/apk/release/wodreplog.apks
 - adb pair ip:port
@@ -45,7 +45,7 @@ For a local Windows release APK build, install:
 Then run:
 
 ```powershell
-pwsh ./scripts/build_android_apk.ps1 -BuildNumber 240036 -BuildName 0.0.24+36
+pwsh ./scripts/build_android_apk.ps1
 ```
 
 The script:
@@ -53,12 +53,14 @@ The script:
 - detects the Android SDK from `-AndroidSdkPath`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or standard Windows SDK locations
 - updates `android/local.properties` with `flutter.sdk` and `sdk.dir`
 - creates `~/.android/debug.keystore` if no release keystore is configured
+- reads the visible version from `pubspec.yaml`
+- computes the Android version code from the visible version
 - enables debug signing fallback for local release APK builds
 
 ### Continuous delivery
-GitHub Actions never changes `pubspec.yaml` automatically. Update the `version:` field manually when you want a new release.
+GitHub Actions never changes `pubspec.yaml` automatically. Update the visible `major.minor.patch` version when you want a new release. The Android version code is computed from that version as `major * 100000000 + minor * 1000000 + patch * 10000`.
 
-Pushing to `master` runs the **Create Release** workflow. It compares only the `major.minor.patch` part of the checked-in `version:` string with the previous `master` commit, ignoring the `+build` suffix. If `major.minor.patch` changed and no `v<major.minor.patch>` GitHub release or tag exists, it creates a new GitHub Release. If only the build number changed, it skips release creation.
+Pushing to `master` runs the **Create Release** workflow. It compares the checked-in `major.minor.patch` version from `pubspec.yaml` with the previous `master` commit. If `major.minor.patch` changed and no `v<major.minor.patch>` GitHub release or tag exists, it creates a new GitHub Release. If only the build number changed, it skips release creation.
 
 Publishing a GitHub Release runs the **Publish PROD** workflow, which validates the release tag matches the checked-in `major.minor.patch` version, builds a signed release app bundle, and publishes it to the configured Google Play track.
 
