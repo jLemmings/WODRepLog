@@ -10,6 +10,17 @@
   "workoutTimerTitle": "Workout Timer",
   "workoutTimerSubtitle": "Run AMRAP, EMOM, For Time, or Tabata timers with clear workout-specific color cues.",
   "timerEyebrow": "Timer",
+  "settings": "Settings",
+  "preferredLanguage": "Preferred language",
+  "selectLanguage": "Select language",
+  "englishLanguage": "English",
+  "germanLanguage": "German",
+  "athleteGreeting": "Athlete: {name}",
+  "@athleteGreeting": {
+    "placeholders": {
+      "name": {}
+    }
+  },
   "versionLabel": "Version {version}",
   "@versionLabel": {
     "placeholders": {

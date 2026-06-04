@@ -24,7 +24,7 @@ samples, guidance on mobile development, and a full API reference.
 - Renovate maintains dependency update PRs and lockfile maintenance on a weekly schedule (`renovate.json`).
 
 ## Dev
-flutter emulators --launch Pixel_8
+flutter emulators --launch Pixel_10
 flutter run
 
 ## Build

@@ -158,6 +158,42 @@ abstract class AppLocalizations {
   /// **'Timer'**
   String get timerEyebrow;
 
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @preferredLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred language'**
+  String get preferredLanguage;
+
+  /// No description provided for @selectLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select language'**
+  String get selectLanguage;
+
+  /// No description provided for @englishLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get englishLanguage;
+
+  /// No description provided for @germanLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'German'**
+  String get germanLanguage;
+
+  /// No description provided for @athleteGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Athlete: {name}'**
+  String athleteGreeting(Object name);
+
   /// No description provided for @versionLabel.
   ///
   /// In en, this message translates to:

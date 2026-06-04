@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -6,7 +5,7 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gallery_saver_plus/gallery_saver.dart';
+import 'package:gal/gal.dart';
 import 'package:path/path.dart' as path;
 
 import 'l10n/app_localizations.dart';
@@ -44,7 +43,9 @@ class RecorderSettings {
 }
 
 class VideoRecorder extends StatefulWidget {
-  const VideoRecorder({super.key});
+  const VideoRecorder({super.key, this.initialAthleteName = ''});
+
+  final String initialAthleteName;
 
   @override
   VideoRecorderState createState() => VideoRecorderState();
@@ -77,6 +78,7 @@ class VideoRecorderState extends State<VideoRecorder> {
   @override
   void initState() {
     super.initState();
+    _athleteName = widget.initialAthleteName.trim();
     _initializeCamera();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -104,7 +106,9 @@ class VideoRecorderState extends State<VideoRecorder> {
       setState(() {});
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar(AppLocalizations.of(context).failedInitializeCamera(e.toString()));
+      _showErrorSnackBar(
+        AppLocalizations.of(context).failedInitializeCamera(e.toString()),
+      );
     }
   }
 
@@ -120,7 +124,9 @@ class VideoRecorderState extends State<VideoRecorder> {
       _startCountdownOrTimer();
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar(AppLocalizations.of(context).errorStartingRecording(e.toString()));
+      _showErrorSnackBar(
+        AppLocalizations.of(context).errorStartingRecording(e.toString()),
+      );
     }
   }
 
@@ -142,13 +148,12 @@ class VideoRecorderState extends State<VideoRecorder> {
       await File(videoFile.path).rename(newFilePath);
       final processedPath = await _embedOverlayInVideo(newFilePath);
 
-      final bool? success = await GallerySaver.saveVideo(processedPath);
+      await Gal.putVideo(processedPath);
       if (!mounted) return;
-      if (success == true) {
-        _showSnackBar(l10n.videoSaved);
-      } else {
-        _showErrorSnackBar(l10n.failedSaveVideo);
-      }
+      _showSnackBar(l10n.videoSaved);
+    } on GalException {
+      if (!mounted) return;
+      _showErrorSnackBar(l10n.failedSaveVideo);
     } catch (e) {
       if (!mounted) return;
       _showErrorSnackBar(l10n.errorStoppingRecording(e.toString()));
@@ -169,32 +174,30 @@ class VideoRecorderState extends State<VideoRecorder> {
     final outputPath = '${path.withoutExtension(inputPath)}_proof.mp4';
     final l10n = AppLocalizations.of(context);
     try {
-      final result = await _videoOverlayChannel.invokeMethod<String>(
-        'embedOverlay',
-        {
-          'inputPath': inputPath,
-          'outputPath': outputPath,
-          'athleteName': _athleteName,
-          'eventName': _eventName,
-          'workoutTitle': _workoutTitle,
-          'timerType': _timerConfig?.type.name,
-          'timerIntervalSeconds': _timerConfig?.intervalSeconds,
-          'timerRounds': _timerConfig?.rounds,
-          'timerTotalSeconds': _timerConfig?.totalSeconds,
-          'countdownSeconds': _countdownSeconds,
-          'eventLabel': l10n.event,
-          'athleteLabel': l10n.athlete,
-          'workoutLabel': l10n.workout,
-          'roundLabel': l10n.round,
-          'countdownLabel': l10n.countdown,
-          'startsInLabel': l10n.startsIn,
-          'nextStartLabel': l10n.nextStartLabel,
-          'elapsedLabel': l10n.elapsed,
-          'remainingLabel': l10n.remaining,
-          'remainingSuffix': l10n.remainingLowercase,
-          'elapsedSuffix': l10n.elapsedLowercase,
-        },
-      );
+      final result = await _videoOverlayChannel
+          .invokeMethod<String>('embedOverlay', {
+            'inputPath': inputPath,
+            'outputPath': outputPath,
+            'athleteName': _athleteName,
+            'eventName': _eventName,
+            'workoutTitle': _workoutTitle,
+            'timerType': _timerConfig?.type.name,
+            'timerIntervalSeconds': _timerConfig?.intervalSeconds,
+            'timerRounds': _timerConfig?.rounds,
+            'timerTotalSeconds': _timerConfig?.totalSeconds,
+            'countdownSeconds': _countdownSeconds,
+            'eventLabel': l10n.event,
+            'athleteLabel': l10n.athlete,
+            'workoutLabel': l10n.workout,
+            'roundLabel': l10n.round,
+            'countdownLabel': l10n.countdown,
+            'startsInLabel': l10n.startsIn,
+            'nextStartLabel': l10n.nextStartLabel,
+            'elapsedLabel': l10n.elapsed,
+            'remainingLabel': l10n.remaining,
+            'remainingSuffix': l10n.remainingLowercase,
+            'elapsedSuffix': l10n.elapsedLowercase,
+          });
 
       return result ?? outputPath;
     } on MissingPluginException {
@@ -383,6 +386,7 @@ class VideoRecorderState extends State<VideoRecorder> {
     _countdownTicker?.cancel();
     _ticker?.cancel();
   }
+
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
@@ -391,20 +395,18 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
   }
+
   Widget _buildCameraPreview() {
     return Center(
       child: FittedBox(
@@ -434,10 +436,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       if (hasWorkout) _OverlayLine(l10n.workout, _workoutTitle),
     ];
 
-    return _ProofOverlayPanel(
-      alignment: Alignment.bottomLeft,
-      lines: lines,
-    );
+    return _ProofOverlayPanel(alignment: Alignment.bottomLeft, lines: lines);
   }
 
   Widget _buildTimerOverlay(BuildContext context) {
@@ -448,10 +447,7 @@ class VideoRecorderState extends State<VideoRecorder> {
 
     final lines = _previewTimerLines(context);
 
-    return _ProofOverlayPanel(
-      alignment: Alignment.bottomRight,
-      lines: lines,
-    );
+    return _ProofOverlayPanel(alignment: Alignment.bottomRight, lines: lines);
   }
 
   List<_OverlayLine> _previewTimerLines(BuildContext context) {
@@ -471,12 +467,16 @@ class VideoRecorderState extends State<VideoRecorder> {
         final interval = config.intervalSeconds ?? 60;
         final rounds = config.rounds ?? 0;
         final roundIndex = (_elapsed.inSeconds ~/ interval) + 1;
-        final currentRound = rounds > 0 ? math.min(roundIndex, rounds) : roundIndex;
+        final currentRound = rounds > 0
+            ? math.min(roundIndex, rounds)
+            : roundIndex;
         final primary = rounds > 0
             ? '${l10n.round} $currentRound/$rounds'
             : '${l10n.round} $currentRound';
         final withinInterval = _elapsed.inSeconds % interval;
-        final remaining = Duration(seconds: math.max(interval - withinInterval, 0));
+        final remaining = Duration(
+          seconds: math.max(interval - withinInterval, 0),
+        );
         return [
           _OverlayLine(l10n.emomTitle, primary),
           _OverlayLine(l10n.nextStartLabel, _formatDuration(remaining)),
@@ -484,7 +484,9 @@ class VideoRecorderState extends State<VideoRecorder> {
         ];
       case WorkoutTimerType.amrap:
         final total = config.totalSeconds ?? 0;
-        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
+        final remaining = Duration(
+          seconds: math.max(total - _elapsed.inSeconds, 0),
+        );
         return [
           _OverlayLine(
             l10n.amrapTitle,
@@ -494,7 +496,9 @@ class VideoRecorderState extends State<VideoRecorder> {
         ];
       case WorkoutTimerType.forTime:
         final total = config.totalSeconds ?? 0;
-        final remaining = Duration(seconds: math.max(total - _elapsed.inSeconds, 0));
+        final remaining = Duration(
+          seconds: math.max(total - _elapsed.inSeconds, 0),
+        );
         return [
           _OverlayLine(
             l10n.forTimeTitle,
@@ -504,6 +508,7 @@ class VideoRecorderState extends State<VideoRecorder> {
         ];
     }
   }
+
   Widget _buildRecordingBadge() {
     final l10n = AppLocalizations.of(context);
     return Align(
@@ -606,7 +611,8 @@ class VideoRecorderState extends State<VideoRecorder> {
                   child: _ControlButton(
                     icon: Icons.restart_alt_rounded,
                     label: l10n.reset,
-                    onPressed: _isRecording ||
+                    onPressed:
+                        _isRecording ||
                             _isProcessingVideo ||
                             (_athleteName.isEmpty &&
                                 _eventName.isEmpty &&
@@ -637,8 +643,8 @@ class VideoRecorderState extends State<VideoRecorder> {
             onPressed: _isProcessingVideo
                 ? null
                 : _isRecording
-                    ? _stopRecording
-                    : _startRecording,
+                ? _stopRecording
+                : _startRecording,
           ),
         ),
       ),
@@ -652,11 +658,9 @@ class _OverlayLine {
   final String label;
   final String value;
 }
+
 class _ProofOverlayPanel extends StatelessWidget {
-  const _ProofOverlayPanel({
-    required this.alignment,
-    required this.lines,
-  });
+  const _ProofOverlayPanel({required this.alignment, required this.lines});
 
   final Alignment alignment;
   final List<_OverlayLine> lines;
@@ -743,6 +747,7 @@ class _ProofOverlayPanel extends StatelessWidget {
     return TextScaler.linear(value);
   }
 }
+
 enum ControlButtonTone { primary, subtle }
 
 class _ControlButton extends StatelessWidget {
@@ -787,9 +792,9 @@ class _ControlButton extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: foreground,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -800,10 +805,7 @@ class _ControlButton extends StatelessWidget {
 }
 
 class _RecordButton extends StatelessWidget {
-  const _RecordButton({
-    required this.isRecording,
-    required this.onPressed,
-  });
+  const _RecordButton({required this.isRecording, required this.onPressed});
 
   final bool isRecording;
   final VoidCallback? onPressed;
@@ -820,7 +822,9 @@ class _RecordButton extends StatelessWidget {
           shape: BoxShape.circle,
           color: Colors.white.withValues(alpha: onPressed == null ? 0.04 : 0.1),
           border: Border.all(
-            color: Colors.white.withValues(alpha: onPressed == null ? 0.08 : 0.25),
+            color: Colors.white.withValues(
+              alpha: onPressed == null ? 0.08 : 0.25,
+            ),
             width: 2,
           ),
           boxShadow: [
@@ -1046,7 +1050,9 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                     const SizedBox(height: 20),
                     Text(
                       l10n.recordingDetails,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _FormFieldLabel(text: l10n.athleteName),
@@ -1096,7 +1102,9 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                     const SizedBox(height: 24),
                     Text(
                       l10n.timerTitle,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     _FormFieldLabel(
@@ -1205,10 +1213,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
                 },
               ),
               const SizedBox(height: 16),
-              _FormFieldLabel(
-                text: l10n.rounds,
-                caption: l10n.roundsCaption,
-              ),
+              _FormFieldLabel(text: l10n.rounds, caption: l10n.roundsCaption),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _roundsController,
@@ -1256,10 +1261,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _FormFieldLabel(
-            text: label,
-            caption: helper,
-          ),
+          _FormFieldLabel(text: label, caption: helper),
           const SizedBox(height: 8),
           TextFormField(
             controller: _durationController,
@@ -1284,10 +1286,7 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
 }
 
 class _FormFieldLabel extends StatelessWidget {
-  const _FormFieldLabel({
-    required this.text,
-    this.caption,
-  });
+  const _FormFieldLabel({required this.text, this.caption});
 
   final String text;
   final String? caption;
@@ -1318,4 +1317,3 @@ class _FormFieldLabel extends StatelessWidget {
     );
   }
 }
-
