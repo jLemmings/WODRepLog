@@ -1,9 +1,16 @@
-name: Create Release
+name: Release and Publish
 
 on:
   push:
     branches:
       - "master"
+  workflow_dispatch:
+    inputs:
+      publish_existing_release:
+        description: "Publish the existing GitHub release matching pubspec.yaml"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -12,12 +19,22 @@ jobs:
   release:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
+    env:
+      JAVA_VERSION: 21
 
     steps:
       - name: Checkout the code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -31,6 +48,9 @@ jobs:
       - name: Analyze project
         run: flutter analyze
 
+      - name: flutter doctor --verbose
+        run: flutter doctor --verbose
+
       - name: Read version info
         id: version
         run: ./scripts/manage_version.sh current
@@ -40,6 +60,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_EXISTING_RELEASE: ${{ github.event.inputs.publish_existing_release || 'false' }}
           CURRENT_VERSION: ${{ steps.version.outputs.new_version }}
           CURRENT_BASE_VERSION: ${{ steps.version.outputs.base_version }}
         run: |
@@ -71,10 +93,16 @@ jobs:
           fi
 
           should_create=false
+          should_publish=false
           if [ "$version_changed" = true ] && \
              [ "$release_exists" = false ] && \
              [ "$tag_exists" = false ]; then
             should_create=true
+            should_publish=true
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && \
+               [ "$PUBLISH_EXISTING_RELEASE" = "true" ] && \
+               [ "$release_exists" = true ]; then
+            should_publish=true
           fi
 
           {
@@ -87,12 +115,46 @@ jobs:
             echo "release_exists=$release_exists"
             echo "tag_exists=$tag_exists"
             echo "should_create=$should_create"
+            echo "should_publish=$should_publish"
           } >> "$GITHUB_OUTPUT"
 
-          if [ "$should_create" != true ]; then
-            echo "Skipping GitHub release for $CURRENT_VERSION."
+          if [ "$should_publish" != true ]; then
+            echo "Skipping release publish for $CURRENT_VERSION."
             echo "base_version_changed=$version_changed previous_base_version=$previous_base_version current_base_version=$CURRENT_BASE_VERSION release_exists=$release_exists tag_exists=$tag_exists"
           fi
+
+      - name: Export version info
+        if: steps.release_gate.outputs.should_publish == 'true'
+        run: |
+          echo "VERSION_NAME=${{ steps.version.outputs.new_version }}" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${{ steps.version.outputs.version_code }}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${{ steps.version.outputs.base_version }}" >> "$GITHUB_ENV"
+
+      - name: Build release app bundle
+        if: steps.release_gate.outputs.should_publish == 'true'
+        run: flutter build appbundle --release
+
+      - name: Sign App Bundle
+        if: steps.release_gate.outputs.should_publish == 'true'
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: build/app/outputs/bundle/release/
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
+          alias: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+      - name: Upload to Play Store (Internal Testing)
+        if: steps.release_gate.outputs.should_publish == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: ch.joshuahemmings.wodreplog
+          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          releaseName: ${{ env.VERSION_NAME }}
+          mappingFile: build/app/outputs/mapping/release/mapping.txt
+          track: alpha
 
       - name: Create GitHub release
         if: steps.release_gate.outputs.should_create == 'true'
