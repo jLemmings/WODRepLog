@@ -1,8 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'l10n/app_localizations.dart';
+import 'services/app_services.dart';
 import 'timer_view.dart';
 import 'video_recorder.dart';
 
@@ -13,12 +13,22 @@ class HomeScreen extends StatefulWidget {
     required this.athleteName,
     required this.languageCode,
     required this.onSettingsChanged,
+    required this.recorderSettingsStore,
+    required this.beepService,
+    required this.appInfoService,
+    required this.videoOverlayService,
+    required this.galleryService,
   });
 
-  final CameraDescription camera;
+  final CameraDescription? camera;
   final String athleteName;
   final String? languageCode;
   final ValueChanged<HomeSettings> onSettingsChanged;
+  final RecorderSettingsStore recorderSettingsStore;
+  final NativeBeepService beepService;
+  final AppInfoService appInfoService;
+  final VideoOverlayService videoOverlayService;
+  final GalleryService galleryService;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -32,9 +42,6 @@ class HomeSettings {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const MethodChannel _appInfoChannel = MethodChannel(
-    'ch.joshuahemmings.wodreplog/app_info',
-  );
   static const String _buildName = String.fromEnvironment(
     'FLUTTER_BUILD_NAME',
     defaultValue: 'unknown',
@@ -57,19 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadNativeVersionName() async {
-    try {
-      final versionName = await _appInfoChannel.invokeMethod<String>(
-        'getVersionName',
-      );
-      if (!mounted || versionName == null || versionName.isEmpty) return;
-      setState(() {
-        _nativeVersionName = versionName;
-      });
-    } on PlatformException {
-      // Keep the compile-time fallback for platforms without this channel.
-    } on MissingPluginException {
-      // Keep the compile-time fallback for platforms without this channel.
-    }
+    final versionName = await widget.appInfoService.versionName();
+    if (!mounted || versionName == null || versionName.isEmpty) return;
+    setState(() {
+      _nativeVersionName = versionName;
+    });
   }
 
   Future<void> _openSettingsSheet() async {
@@ -185,8 +184,14 @@ class _HomeScreenState extends State<HomeScreen> {
         eyebrow: l10n.cameraEyebrow,
         icon: Icons.videocam_rounded,
         color: scheme.primary,
-        builder: (context) =>
-            VideoRecorder(initialAthleteName: widget.athleteName),
+        builder: (context) => VideoRecorder(
+          camera: widget.camera,
+          initialAthleteName: widget.athleteName,
+          settingsStore: widget.recorderSettingsStore,
+          beepService: widget.beepService,
+          videoOverlayService: widget.videoOverlayService,
+          galleryService: widget.galleryService,
+        ),
       ),
       _HomeOption(
         title: l10n.workoutTimerTitle,
@@ -194,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
         eyebrow: l10n.timerEyebrow,
         icon: Icons.timer_rounded,
         color: scheme.secondary,
-        builder: (context) => const TimerView(),
+        builder: (context) => TimerView(beepService: widget.beepService),
       ),
     ];
   }

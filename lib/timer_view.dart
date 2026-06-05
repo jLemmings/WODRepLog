@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'l10n/app_localizations.dart';
+import 'services/app_services.dart';
 import 'theme.dart';
 import 'timer_options/amrap_settings.dart';
 import 'timer_options/emom_settings.dart';
@@ -8,7 +9,9 @@ import 'timer_options/for_time_settings.dart';
 import 'timer_options/tabata_settings.dart';
 
 class TimerView extends StatelessWidget {
-  const TimerView({super.key});
+  const TimerView({super.key, required this.beepService});
+
+  final NativeBeepService beepService;
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +62,11 @@ class TimerView extends StatelessWidget {
                     physics: const BouncingScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.86,
-                    ),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.86,
+                        ),
                     itemCount: options.length,
                     itemBuilder: (context, index) {
                       return _TimerModeCard(option: options[index]);
@@ -87,28 +90,28 @@ class TimerView extends StatelessWidget {
         subtitle: l10n.amrapCardDescription,
         icon: Icons.fitness_center_rounded,
         color: colorScheme.amrapColor,
-        builder: (context) => const AmrapSettings(),
+        builder: (context) => AmrapSettings(beepService: beepService),
       ),
       _TimerOptionData(
         title: l10n.forTimeTitle,
         subtitle: l10n.forTimeCardDescription,
         icon: Icons.flag_rounded,
         color: colorScheme.forTimeColor,
-        builder: (context) => const ForTimeSettings(),
+        builder: (context) => ForTimeSettings(beepService: beepService),
       ),
       _TimerOptionData(
         title: l10n.emomTitle,
         subtitle: l10n.emomCardDescription,
         icon: Icons.schedule_rounded,
         color: colorScheme.emomColor,
-        builder: (context) => const EmomSettings(),
+        builder: (context) => EmomSettings(beepService: beepService),
       ),
       _TimerOptionData(
         title: l10n.tabataTitle,
         subtitle: l10n.tabataCardDescription,
         icon: Icons.bolt_rounded,
         color: colorScheme.tabataColor,
-        builder: (context) => const TabataSettings(),
+        builder: (context) => TabataSettings(beepService: beepService),
       ),
     ];
   }
@@ -127,10 +130,8 @@ class _TimerModeCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: option.builder),
-        ),
+        onTap: () =>
+            Navigator.push(context, MaterialPageRoute(builder: option.builder)),
         borderRadius: BorderRadius.circular(20),
         child: Ink(
           padding: const EdgeInsets.all(16),
