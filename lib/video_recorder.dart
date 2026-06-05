@@ -5,47 +5,30 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gal/gal.dart';
+import 'package:gal/gal.dart' show GalException;
 import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
 
+import 'domain/recorder_settings.dart';
+import 'domain/workout_timer.dart';
 import 'l10n/app_localizations.dart';
-
-enum WorkoutTimerType { emom, amrap, forTime }
-
-class TimerConfiguration {
-  const TimerConfiguration({
-    required this.type,
-    this.intervalSeconds,
-    this.rounds,
-    this.totalSeconds,
-  });
-
-  final WorkoutTimerType type;
-  final int? intervalSeconds;
-  final int? rounds;
-  final int? totalSeconds;
-}
-
-class RecorderSettings {
-  const RecorderSettings({
-    required this.athleteName,
-    required this.eventName,
-    required this.workoutTitle,
-    required this.countdownSeconds,
-    this.timerConfiguration,
-  });
-
-  final String athleteName;
-  final String eventName;
-  final String workoutTitle;
-  final int countdownSeconds;
-  final TimerConfiguration? timerConfiguration;
-}
+import 'services/app_services.dart';
 
 class VideoRecorder extends StatefulWidget {
-  const VideoRecorder({super.key, this.initialAthleteName = ''});
+  const VideoRecorder({
+    super.key,
+    required this.camera,
+    required this.settingsStore,
+    required this.beepService,
+    required this.videoOverlayService,
+    required this.galleryService,
+    this.initialAthleteName = '',
+  });
 
+  final CameraDescription? camera;
+  final RecorderSettingsStore settingsStore;
+  final NativeBeepService beepService;
+  final VideoOverlayService videoOverlayService;
+  final GalleryService galleryService;
   final String initialAthleteName;
 
   @override
@@ -53,30 +36,14 @@ class VideoRecorder extends StatefulWidget {
 }
 
 class VideoRecorderState extends State<VideoRecorder> {
-  static const String _athleteNamePreferenceKey = 'recorderAthleteName';
-  static const String _eventNamePreferenceKey = 'recorderEventName';
-  static const String _workoutTitlePreferenceKey = 'recorderWorkoutTitle';
-  static const String _countdownSecondsPreferenceKey =
-      'recorderCountdownSeconds';
-  static const String _timerTypePreferenceKey = 'recorderTimerType';
-  static const String _timerIntervalSecondsPreferenceKey =
-      'recorderTimerIntervalSeconds';
-  static const String _timerRoundsPreferenceKey = 'recorderTimerRounds';
-  static const String _timerTotalSecondsPreferenceKey =
-      'recorderTimerTotalSeconds';
-  static const MethodChannel _videoOverlayChannel = MethodChannel(
-    'ch.joshuahemmings.wodreplog/video_overlay',
-  );
-  static const MethodChannel _beepChannel = MethodChannel(
-    'ch.joshuahemmings.wodreplog/beep',
-  );
   static const Duration _countdownBeepDuration = Duration(milliseconds: 180);
   static const Duration _startBeepDuration = Duration(seconds: 2);
 
-  late CameraController _controller;
+  CameraController? _controller;
   bool _isRecording = false;
   bool _isProcessingVideo = false;
   bool _isCountingDown = false;
+  String? _cameraError;
   Timer? _ticker;
   Timer? _countdownTicker;
   Duration _elapsed = Duration.zero;
@@ -113,7 +80,7 @@ class VideoRecorderState extends State<VideoRecorder> {
     _ticker?.cancel();
     _countdownTicker?.cancel();
     unawaited(_stopNativeBeep());
-    _controller.dispose();
+    _controller?.dispose();
 
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -122,14 +89,20 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   Future<void> _initializeCamera() async {
     try {
-      final cameras = await availableCameras();
-      final camera = cameras.first;
-      _controller = CameraController(camera, ResolutionPreset.high);
-      await _controller.initialize();
+      final camera = widget.camera;
+      if (camera == null) {
+        throw StateError('No camera is available on this device.');
+      }
+      final controller = CameraController(camera, ResolutionPreset.high);
+      _controller = controller;
+      await controller.initialize();
       if (!mounted) return;
       setState(() {});
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _cameraError = e.toString();
+      });
       _showErrorSnackBar(
         AppLocalizations.of(context).failedInitializeCamera(e.toString()),
       );
@@ -137,107 +110,40 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _loadStoredSettings() async {
-    final preferences = await SharedPreferences.getInstance();
+    final storedSettings = widget.settingsStore.load(
+      fallbackAthleteName: widget.initialAthleteName.trim(),
+    );
     if (!mounted) return;
 
-    final storedAthleteName = preferences.getString(_athleteNamePreferenceKey);
-    final storedEventName = preferences.getString(_eventNamePreferenceKey);
-    final storedWorkoutTitle = preferences.getString(
-      _workoutTitlePreferenceKey,
-    );
-    final storedCountdownSeconds = preferences.getInt(
-      _countdownSecondsPreferenceKey,
-    );
-    final storedTimerConfiguration = _storedTimerConfiguration(preferences);
-
     setState(() {
-      if (storedAthleteName != null) {
-        _athleteName = storedAthleteName;
-      }
-      if (storedEventName != null) {
-        _eventName = storedEventName;
-      }
-      if (storedWorkoutTitle != null) {
-        _workoutTitle = storedWorkoutTitle;
-      }
-      if (storedCountdownSeconds != null) {
-        _countdownSeconds = storedCountdownSeconds;
-      }
-      _timerConfig = storedTimerConfiguration;
+      _athleteName = storedSettings.athleteName;
+      _eventName = storedSettings.eventName;
+      _workoutTitle = storedSettings.workoutTitle;
+      _countdownSeconds = storedSettings.countdownSeconds;
+      _timerConfig = storedSettings.timerConfiguration;
     });
   }
 
-  TimerConfiguration? _storedTimerConfiguration(SharedPreferences preferences) {
-    final timerTypeName = preferences.getString(_timerTypePreferenceKey);
-    final timerType = WorkoutTimerType.values
-        .where((type) => type.name == timerTypeName)
-        .firstOrNull;
-    if (timerType == null) return null;
-
-    switch (timerType) {
-      case WorkoutTimerType.emom:
-        return TimerConfiguration(
-          type: timerType,
-          intervalSeconds: preferences.getInt(
-            _timerIntervalSecondsPreferenceKey,
-          ),
-          rounds: preferences.getInt(_timerRoundsPreferenceKey),
-        );
-      case WorkoutTimerType.amrap:
-      case WorkoutTimerType.forTime:
-        return TimerConfiguration(
-          type: timerType,
-          totalSeconds: preferences.getInt(_timerTotalSecondsPreferenceKey),
-        );
-    }
-  }
-
   Future<void> _storeSettings() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(_athleteNamePreferenceKey, _athleteName);
-    await preferences.setString(_eventNamePreferenceKey, _eventName);
-    await preferences.setString(_workoutTitlePreferenceKey, _workoutTitle);
-    await preferences.setInt(_countdownSecondsPreferenceKey, _countdownSeconds);
-
-    final timerConfig = _timerConfig;
-    if (timerConfig == null) {
-      await preferences.remove(_timerTypePreferenceKey);
-      await preferences.remove(_timerIntervalSecondsPreferenceKey);
-      await preferences.remove(_timerRoundsPreferenceKey);
-      await preferences.remove(_timerTotalSecondsPreferenceKey);
-      return;
-    }
-
-    await preferences.setString(_timerTypePreferenceKey, timerConfig.type.name);
-    switch (timerConfig.type) {
-      case WorkoutTimerType.emom:
-        await preferences.setInt(
-          _timerIntervalSecondsPreferenceKey,
-          timerConfig.intervalSeconds ?? 60,
-        );
-        await preferences.setInt(
-          _timerRoundsPreferenceKey,
-          timerConfig.rounds ?? 10,
-        );
-        await preferences.remove(_timerTotalSecondsPreferenceKey);
-        break;
-      case WorkoutTimerType.amrap:
-      case WorkoutTimerType.forTime:
-        await preferences.setInt(
-          _timerTotalSecondsPreferenceKey,
-          timerConfig.totalSeconds ?? 0,
-        );
-        await preferences.remove(_timerIntervalSecondsPreferenceKey);
-        await preferences.remove(_timerRoundsPreferenceKey);
-        break;
-    }
+    await widget.settingsStore.save(
+      RecorderSettings(
+        athleteName: _athleteName,
+        eventName: _eventName,
+        workoutTitle: _workoutTitle,
+        countdownSeconds: _countdownSeconds,
+        timerConfiguration: _timerConfig,
+      ),
+    );
   }
 
   Future<void> _startRecording() async {
-    if (!_controller.value.isInitialized || _isRecording) return;
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _isRecording) {
+      return;
+    }
 
     try {
-      await _controller.startVideoRecording();
+      await controller.startVideoRecording();
       setState(() {
         _isRecording = true;
         _elapsed = Duration.zero;
@@ -252,11 +158,16 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _stopRecording() async {
-    if (!_controller.value.isInitialized || !_isRecording) return;
+    final controller = _controller;
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        !_isRecording) {
+      return;
+    }
     final l10n = AppLocalizations.of(context);
 
     try {
-      final XFile videoFile = await _controller.stopVideoRecording();
+      final XFile videoFile = await controller.stopVideoRecording();
       setState(() {
         _isRecording = false;
         _isProcessingVideo = true;
@@ -269,7 +180,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       await File(videoFile.path).rename(newFilePath);
       final processedPath = await _embedOverlayInVideo(newFilePath);
 
-      await Gal.putVideo(processedPath);
+      await widget.galleryService.saveVideo(processedPath);
       if (!mounted) return;
       _showSnackBar(l10n.videoSaved);
     } on GalException {
@@ -292,38 +203,35 @@ class VideoRecorderState extends State<VideoRecorder> {
       return inputPath;
     }
 
-    final outputPath = '${path.withoutExtension(inputPath)}_proof.mp4';
+    final outputPath = widget.videoOverlayService.proofOutputPath(inputPath);
     final l10n = AppLocalizations.of(context);
-    try {
-      final result = await _videoOverlayChannel
-          .invokeMethod<String>('embedOverlay', {
-            'inputPath': inputPath,
-            'outputPath': outputPath,
-            'athleteName': _athleteName,
-            'eventName': _eventName,
-            'workoutTitle': _workoutTitle,
-            'timerType': _timerConfig?.type.name,
-            'timerIntervalSeconds': _timerConfig?.intervalSeconds,
-            'timerRounds': _timerConfig?.rounds,
-            'timerTotalSeconds': _timerConfig?.totalSeconds,
-            'countdownSeconds': _countdownSeconds,
-            'eventLabel': l10n.event,
-            'athleteLabel': l10n.athlete,
-            'workoutLabel': l10n.workout,
-            'roundLabel': l10n.round,
-            'countdownLabel': l10n.countdown,
-            'startsInLabel': l10n.startsIn,
-            'nextStartLabel': l10n.nextStartLabel,
-            'elapsedLabel': l10n.elapsed,
-            'remainingLabel': l10n.remaining,
-            'remainingSuffix': l10n.remainingLowercase,
-            'elapsedSuffix': l10n.elapsedLowercase,
-          });
-
-      return result ?? outputPath;
-    } on MissingPluginException {
-      return inputPath;
-    }
+    return widget.videoOverlayService.embedOverlay(
+      VideoOverlayRequest(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        athleteName: _athleteName,
+        eventName: _eventName,
+        workoutTitle: _workoutTitle,
+        countdownSeconds: _countdownSeconds,
+        timerConfiguration: _timerConfig,
+        eventLabel: l10n.event,
+        athleteLabel: l10n.athlete,
+        workoutLabel: l10n.workout,
+        labels: TimerOverlayLabels(
+          countdown: l10n.countdown,
+          startsIn: l10n.startsIn,
+          remaining: l10n.remaining,
+          round: l10n.round,
+          emom: l10n.emomTitle,
+          amrap: l10n.amrapTitle,
+          forTime: l10n.forTimeTitle,
+          nextStart: l10n.nextStartLabel,
+          elapsed: l10n.elapsed,
+          remainingSuffix: l10n.remainingLowercase,
+          elapsedSuffix: l10n.elapsedLowercase,
+        ),
+      ),
+    );
   }
 
   bool get _hasOverlayContent =>
@@ -382,25 +290,11 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _playNativeBeep(Duration duration) async {
-    try {
-      await _beepChannel.invokeMethod<void>('playBeep', {
-        'durationMs': duration.inMilliseconds,
-      });
-    } on MissingPluginException {
-      // Recording should still work if native audio cues are unavailable.
-    } on PlatformException {
-      // Recording should still work if native audio cues are unavailable.
-    }
+    await widget.beepService.play(duration);
   }
 
   Future<void> _stopNativeBeep() async {
-    try {
-      await _beepChannel.invokeMethod<void>('stopBeep');
-    } on MissingPluginException {
-      // Recording should still work if native audio cues are unavailable.
-    } on PlatformException {
-      // Recording should still work if native audio cues are unavailable.
-    }
+    await widget.beepService.stop();
   }
 
   void _startTimerTicker() {
@@ -435,23 +329,8 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   bool _shouldStopTimer(TimerConfiguration config, Duration elapsed) {
-    switch (config.type) {
-      case WorkoutTimerType.emom:
-        final rounds = config.rounds;
-        final interval = config.intervalSeconds;
-        if (rounds != null && interval != null) {
-          final totalSeconds = rounds * interval;
-          return elapsed.inSeconds >= totalSeconds;
-        }
-        return false;
-      case WorkoutTimerType.amrap:
-      case WorkoutTimerType.forTime:
-        final total = config.totalSeconds;
-        if (total != null && total > 0) {
-          return elapsed.inSeconds >= total;
-        }
-        return false;
-    }
+    final total = config.totalWorkoutSeconds;
+    return total > 0 && elapsed.inSeconds >= total;
   }
 
   Future<void> _openSettingsSheet() async {
@@ -514,12 +393,6 @@ class VideoRecorderState extends State<VideoRecorder> {
     await _storeSettings();
   }
 
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -535,13 +408,14 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Widget _buildCameraPreview() {
+    final controller = _controller!;
     return Center(
       child: FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: _controller.value.previewSize!.width,
-          height: _controller.value.previewSize!.height,
-          child: CameraPreview(_controller),
+          width: controller.value.previewSize!.width,
+          height: controller.value.previewSize!.height,
+          child: CameraPreview(controller),
         ),
       ),
     );
@@ -589,51 +463,24 @@ class VideoRecorderState extends State<VideoRecorder> {
     final config = _timerConfig;
     if (config == null) return const [];
 
-    switch (config.type) {
-      case WorkoutTimerType.emom:
-        final interval = config.intervalSeconds ?? 60;
-        final rounds = config.rounds ?? 0;
-        final roundIndex = (_elapsed.inSeconds ~/ interval) + 1;
-        final currentRound = rounds > 0
-            ? math.min(roundIndex, rounds)
-            : roundIndex;
-        final primary = rounds > 0
-            ? '${l10n.round} $currentRound/$rounds'
-            : '${l10n.round} $currentRound';
-        final withinInterval = _elapsed.inSeconds % interval;
-        final remaining = Duration(
-          seconds: math.max(interval - withinInterval, 0),
-        );
-        return [
-          _OverlayLine(l10n.emomTitle, primary),
-          _OverlayLine(l10n.nextStartLabel, _formatDuration(remaining)),
-          _OverlayLine(l10n.elapsed, _formatDuration(_elapsed)),
-        ];
-      case WorkoutTimerType.amrap:
-        final total = config.totalSeconds ?? 0;
-        final remaining = Duration(
-          seconds: math.max(total - _elapsed.inSeconds, 0),
-        );
-        return [
-          _OverlayLine(
-            l10n.amrapTitle,
-            '${_formatDuration(remaining)} ${l10n.remainingLowercase}',
-          ),
-          _OverlayLine(l10n.elapsed, _formatDuration(_elapsed)),
-        ];
-      case WorkoutTimerType.forTime:
-        final total = config.totalSeconds ?? 0;
-        final remaining = Duration(
-          seconds: math.max(total - _elapsed.inSeconds, 0),
-        );
-        return [
-          _OverlayLine(
-            l10n.forTimeTitle,
-            '${_formatDuration(_elapsed)} ${l10n.elapsedLowercase}',
-          ),
-          _OverlayLine(l10n.remaining, _formatDuration(remaining)),
-        ];
-    }
+    return buildTimerOverlayLines(
+      configuration: config,
+      elapsedSeconds: _elapsed.inSeconds,
+      countdownRemaining: 0,
+      labels: TimerOverlayLabels(
+        countdown: l10n.countdown,
+        startsIn: l10n.startsIn,
+        remaining: l10n.remaining,
+        round: l10n.round,
+        emom: l10n.emomTitle,
+        amrap: l10n.amrapTitle,
+        forTime: l10n.forTimeTitle,
+        nextStart: l10n.nextStartLabel,
+        elapsed: l10n.elapsed,
+        remainingSuffix: l10n.remainingLowercase,
+        elapsedSuffix: l10n.elapsedLowercase,
+      ),
+    ).map((line) => _OverlayLine(line.label, line.value)).toList();
   }
 
   Widget _buildRecordingBadge() {
@@ -686,7 +533,32 @@ class VideoRecorderState extends State<VideoRecorder> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_controller.value.isInitialized) {
+    final controller = _controller;
+    final cameraError = _cameraError;
+    if (cameraError != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              AppLocalizations.of(context).failedInitializeCamera(cameraError),
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+          ),
+        ),
+      );
+    }
+    if (controller == null || !controller.value.isInitialized) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
@@ -1042,6 +914,9 @@ class _RecorderSettingsSheetState extends State<RecorderSettingsSheet> {
           _selectedTimerType = TimerTypeOption.emom;
           _intervalController.text = (timer.intervalSeconds ?? 60).toString();
           _roundsController.text = (timer.rounds ?? 10).toString();
+          break;
+        case WorkoutTimerType.tabata:
+          _selectedTimerType = TimerTypeOption.none;
           break;
       }
     }

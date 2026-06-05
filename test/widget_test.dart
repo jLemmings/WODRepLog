@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wodreplog/main.dart';
+import 'package:wodreplog/services/app_services.dart';
 
 void main() {
   testWidgets('renders home screen actions', (WidgetTester tester) async {
@@ -18,7 +19,8 @@ void main() {
         camera: camera,
         initialAthleteName: '',
         initialLanguageCode: 'en',
-        preferences: preferences,
+        homePreferences: HomePreferencesStore(preferences),
+        recorderSettingsStore: RecorderSettingsStore(preferences),
       ),
     );
 

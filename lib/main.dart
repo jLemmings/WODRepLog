@@ -4,24 +4,23 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import 'l10n/app_localizations.dart';
+import 'services/app_services.dart';
 import 'theme.dart';
-
-const _athleteNamePreferenceKey = 'athleteName';
-const _languageCodePreferenceKey = 'languageCode';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await SharedPreferences.getInstance();
-  final cameras = await availableCameras();
-  final firstCamera = cameras.first;
+  final cameraService = const CameraService();
+  final cameras = await cameraService.availableDeviceCameras();
+  final homePreferences = HomePreferencesStore(preferences);
 
   runApp(
     MyApp(
-      camera: firstCamera,
-      initialAthleteName:
-          preferences.getString(_athleteNamePreferenceKey) ?? '',
-      initialLanguageCode: preferences.getString(_languageCodePreferenceKey),
-      preferences: preferences,
+      camera: cameras.firstOrNull,
+      initialAthleteName: homePreferences.athleteName,
+      initialLanguageCode: homePreferences.languageCode,
+      homePreferences: homePreferences,
+      recorderSettingsStore: RecorderSettingsStore(preferences),
     ),
   );
 }
@@ -32,13 +31,23 @@ class MyApp extends StatefulWidget {
     required this.camera,
     required this.initialAthleteName,
     required this.initialLanguageCode,
-    required this.preferences,
+    required this.homePreferences,
+    required this.recorderSettingsStore,
+    this.beepService = const NativeBeepService(),
+    this.appInfoService = const AppInfoService(),
+    this.videoOverlayService = const VideoOverlayService(),
+    this.galleryService = const GalleryService(),
   });
 
-  final CameraDescription camera;
+  final CameraDescription? camera;
   final String initialAthleteName;
   final String? initialLanguageCode;
-  final SharedPreferences preferences;
+  final HomePreferencesStore homePreferences;
+  final RecorderSettingsStore recorderSettingsStore;
+  final NativeBeepService beepService;
+  final AppInfoService appInfoService;
+  final VideoOverlayService videoOverlayService;
+  final GalleryService galleryService;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -56,13 +65,9 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _updateHomeSettings(HomeSettings settings) async {
-    await widget.preferences.setString(
-      _athleteNamePreferenceKey,
-      settings.athleteName,
-    );
-    await widget.preferences.setString(
-      _languageCodePreferenceKey,
-      settings.languageCode,
+    await widget.homePreferences.save(
+      athleteName: settings.athleteName,
+      languageCode: settings.languageCode,
     );
 
     setState(() {
@@ -91,6 +96,11 @@ class _MyAppState extends State<MyApp> {
         athleteName: _athleteName,
         languageCode: _languageCode,
         onSettingsChanged: _updateHomeSettings,
+        recorderSettingsStore: widget.recorderSettingsStore,
+        beepService: widget.beepService,
+        appInfoService: widget.appInfoService,
+        videoOverlayService: widget.videoOverlayService,
+        galleryService: widget.galleryService,
       ),
     );
   }

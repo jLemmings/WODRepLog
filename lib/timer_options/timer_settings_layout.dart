@@ -69,7 +69,9 @@ class TimerSettingsLayout extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF101318).withValues(alpha: 0.92),
                   border: Border(
-                    top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                    top: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                 ),
                 child: FilledButton.icon(
@@ -151,8 +153,8 @@ class TimerSettingsTile extends StatelessWidget {
                     Text(
                       label,
                       style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     if (helper != null) ...[
@@ -180,8 +182,10 @@ class TimerSettingsTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Icon(Icons.chevron_right,
-                      color: Colors.white.withValues(alpha: 0.56)),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.white.withValues(alpha: 0.56),
+                  ),
                 ],
               ),
             ],
@@ -193,10 +197,7 @@ class TimerSettingsTile extends StatelessWidget {
 }
 
 class TimerSummaryItem {
-  const TimerSummaryItem({
-    required this.label,
-    required this.value,
-  });
+  const TimerSummaryItem({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -285,10 +286,7 @@ class TimerSummaryCard extends StatelessWidget {
                 if (!isLast)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Divider(
-                      height: 1,
-                      color: dividerColor,
-                    ),
+                    child: Divider(height: 1, color: dividerColor),
                   ),
               ],
             );
@@ -341,8 +339,10 @@ class _TimerHeader extends StatelessWidget {
               const Spacer(),
               if (duration != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(999),
@@ -402,5 +402,3 @@ List<Widget> _withSpacing(List<Widget> children) {
   }
   return spaced;
 }
-
-

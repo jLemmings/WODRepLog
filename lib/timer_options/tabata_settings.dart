@@ -1,13 +1,16 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/app_services.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
+import 'timer_picker_sheet.dart';
 import 'timer_settings_layout.dart';
 
 class TabataSettings extends StatefulWidget {
-  const TabataSettings({super.key});
+  const TabataSettings({super.key, required this.beepService});
+
+  final NativeBeepService beepService;
 
   @override
   TabataSettingsState createState() => TabataSettingsState();
@@ -50,7 +53,7 @@ class TabataSettingsState extends State<TabataSettings> {
           helper: l10n.tabataRoundsHelper,
           icon: Icons.replay_circle_filled,
           onTap: () {
-            _showPicker(
+            showTimerNumberPicker(
               context: context,
               items: List<int>.generate(30, (index) => index + 1),
               initialValue: _rounds,
@@ -68,7 +71,7 @@ class TabataSettingsState extends State<TabataSettings> {
           helper: l10n.workIntervalHelper,
           icon: Icons.fitness_center,
           onTap: () {
-            _showTimePicker(
+            showTimerTimePicker(
               context: context,
               accentColor: accentColor,
               initialMinutes: _workMinutes,
@@ -89,7 +92,7 @@ class TabataSettingsState extends State<TabataSettings> {
           helper: l10n.restIntervalHelper,
           icon: Icons.bedtime,
           onTap: () {
-            _showTimePicker(
+            showTimerTimePicker(
               context: context,
               accentColor: accentColor,
               initialMinutes: _restMinutes,
@@ -114,249 +117,10 @@ class TabataSettingsState extends State<TabataSettings> {
               duration: _workInterval,
               workoutName: l10n.tabataTitle,
               accentColor: accentColor,
+              beepService: widget.beepService,
               interval: _restInterval,
               rounds: _rounds,
               totalDuration: _totalTime,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showTimePicker({
-    required BuildContext context,
-    required int initialMinutes,
-    required int initialSeconds,
-    required ValueChanged<int> onMinutesChanged,
-    required ValueChanged<int> onSecondsChanged,
-    required Color accentColor,
-    List<int> secondOptions = const [0, 15, 30, 45],
-  }) {
-    final initialSecondIndex = secondOptions.indexOf(initialSeconds);
-    final secondsController = FixedExtentScrollController(
-      initialItem: initialSecondIndex >= 0 ? initialSecondIndex : 0,
-    );
-
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    const modalBackground = Color(0xFF101318);
-    final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ) ??
-        const TextStyle(
-          fontSize: 20,
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        );
-    final overlayColor = accentColor.withValues(alpha: 0.22);
-
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) {
-        return Container(
-          height: 320,
-          decoration: BoxDecoration(
-            color: modalBackground,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 30,
-                offset: const Offset(0, -12),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: CupertinoPicker(
-                          scrollController: FixedExtentScrollController(
-                            initialItem: initialMinutes,
-                          ),
-                          selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: overlayColor,
-                          ),
-                          itemExtent: 34.0,
-                          onSelectedItemChanged: (index) {
-                            onMinutesChanged(index);
-                          },
-                          children: List.generate(
-                            60,
-                            (index) => Center(
-                              child: Text(
-                                l10n.minutesUnit(index),
-                                style: pickerTextStyle,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: CupertinoPicker(
-                          scrollController: secondsController,
-                          selectionOverlay:
-                              CupertinoPickerDefaultSelectionOverlay(
-                            background: overlayColor,
-                          ),
-                          itemExtent: 34.0,
-                          onSelectedItemChanged: (index) {
-                            onSecondsChanged(secondOptions[index]);
-                          },
-                          children: secondOptions
-                              .map(
-                                (sec) => Center(
-                                  child: Text(
-                                    l10n.secondsUnit(sec),
-                                    style: pickerTextStyle,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: modalBackground,
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  child: CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Text(
-                      l10n.done,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showPicker({
-    required BuildContext context,
-    required List<int> items,
-    required int initialValue,
-    required ValueChanged<int> onSelectedItemChanged,
-    required Color accentColor,
-  }) {
-    final initialIndex = items.indexOf(initialValue);
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    const modalBackground = Color(0xFF101318);
-    final pickerTextStyle = theme.textTheme.titleMedium?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ) ??
-        const TextStyle(
-          fontSize: 20,
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        );
-    final overlayColor = accentColor.withValues(alpha: 0.22);
-
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) {
-        return Container(
-          height: 320,
-          decoration: BoxDecoration(
-            color: modalBackground,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 30,
-                offset: const Offset(0, -12),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                Expanded(
-                  child: CupertinoPicker(
-                    itemExtent: 34.0,
-                    scrollController: FixedExtentScrollController(
-                      initialItem: initialIndex >= 0 ? initialIndex : 0,
-                    ),
-                    selectionOverlay: CupertinoPickerDefaultSelectionOverlay(
-                      background: overlayColor,
-                    ),
-                    onSelectedItemChanged: (index) {
-                      onSelectedItemChanged(items[index]);
-                    },
-                    children: items
-                        .map(
-                          (value) => Center(
-                            child: Text(
-                              value.toString(),
-                              style: pickerTextStyle,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: modalBackground,
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  child: CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Text(
-                      l10n.done,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
             ),
           ),
         );

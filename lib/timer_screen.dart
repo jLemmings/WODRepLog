@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'clock_painter.dart';
+import 'domain/workout_timer.dart';
 import 'l10n/app_localizations.dart';
-
-enum TimerPhase { work, rest, complete }
+import 'services/app_services.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({
@@ -15,6 +14,7 @@ class TimerScreen extends StatefulWidget {
     required this.duration,
     required this.workoutName,
     required this.accentColor,
+    required this.beepService,
     this.interval,
     this.rounds,
     this.totalDuration,
@@ -23,6 +23,7 @@ class TimerScreen extends StatefulWidget {
   final int duration;
   final String workoutName;
   final Color accentColor;
+  final NativeBeepService beepService;
   final int? interval;
   final int? rounds;
   final int? totalDuration;
@@ -35,15 +36,10 @@ class TimerScreenState extends State<TimerScreen> {
   static const int _countdownSeed = 3;
   static const Duration _countdownBeepDuration = Duration(milliseconds: 180);
   static const Duration _startBeepDuration = Duration(seconds: 2);
-  static const MethodChannel _beepChannel = MethodChannel(
-    'ch.joshuahemmings.wodreplog/beep',
-  );
 
-  late int _currentRound;
-  late int _phaseDuration;
-  late int _phaseRemaining;
-  late int _overallElapsed;
-  late int _totalWorkoutSeconds;
+  late WorkoutTimerConfiguration _configuration;
+  late WorkoutTimerEngine _engine;
+  late WorkoutTimerSnapshot _snapshot;
 
   Timer? _timer;
   Timer? _countdownTimer;
@@ -51,21 +47,17 @@ class TimerScreenState extends State<TimerScreen> {
   int _countdown = _countdownSeed;
   bool _isCountdownActive = true;
   bool _isPaused = false;
-  TimerPhase _phase = TimerPhase.work;
+  WorkoutTimerPhase get _phase => _snapshot.phase;
+  int get _currentRound => _snapshot.currentRound;
+  int get _phaseRemaining => _snapshot.phaseRemaining;
+  int get _overallElapsed => _snapshot.overallElapsed;
 
   bool get _hasRounds => (widget.rounds ?? 0) > 0;
   bool get _hasRest => (widget.interval ?? 0) > 0;
-  bool get _isComplete => _phase == TimerPhase.complete;
-
-  double get _phaseProgress =>
-      _phaseDuration == 0 ? 0 : 1 - (_phaseRemaining / _phaseDuration);
-
-  double get _totalProgress => _totalWorkoutSeconds == 0
-      ? 0
-      : (_overallElapsed / _totalWorkoutSeconds).clamp(0, 1).toDouble();
-
-  int get _totalRemaining =>
-      (_totalWorkoutSeconds - _overallElapsed).clamp(0, _totalWorkoutSeconds);
+  bool get _isComplete => _snapshot.isComplete;
+  double get _phaseProgress => _snapshot.phaseProgress;
+  double get _totalProgress => _snapshot.totalProgress;
+  int get _totalRemaining => _snapshot.totalRemaining;
 
   @override
   void initState() {
@@ -75,12 +67,15 @@ class TimerScreenState extends State<TimerScreen> {
   }
 
   void _bootstrapState() {
-    _currentRound = 1;
-    _phase = TimerPhase.work;
-    _phaseDuration = widget.duration;
-    _phaseRemaining = widget.duration;
-    _overallElapsed = 0;
-    _totalWorkoutSeconds = widget.totalDuration ?? _deriveTotalSeconds();
+    _configuration = WorkoutTimerConfiguration(
+      type: _hasRest ? WorkoutTimerType.tabata : WorkoutTimerType.emom,
+      workSeconds: widget.duration,
+      restSeconds: widget.interval,
+      rounds: widget.rounds,
+      totalSeconds: widget.totalDuration ?? _deriveTotalSeconds(),
+    );
+    _engine = WorkoutTimerEngine(_configuration);
+    _snapshot = _engine.initialSnapshot();
     _isPaused = false;
     _isCountdownActive = true;
     _countdown = _countdownSeed;
@@ -106,8 +101,9 @@ class TimerScreenState extends State<TimerScreen> {
     });
     unawaited(_playCountdownBeep());
 
-    _countdownTimer =
-        Timer.periodic(const Duration(seconds: 1), (Timer countdownTimer) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (
+      Timer countdownTimer,
+    ) {
       if (_countdown > 0) {
         setState(() {
           _countdown--;
@@ -131,11 +127,7 @@ class TimerScreenState extends State<TimerScreen> {
       _isPaused = false;
       _isCountdownActive = false;
       if (!fromResume && _isComplete) {
-        _phase = TimerPhase.work;
-        _phaseDuration = widget.duration;
-        _phaseRemaining = widget.duration;
-        _overallElapsed = 0;
-        _currentRound = 1;
+        _snapshot = _engine.initialSnapshot();
       }
     });
 
@@ -146,54 +138,11 @@ class TimerScreenState extends State<TimerScreen> {
     if (!mounted) return;
 
     setState(() {
-      if (_phaseRemaining > 0) {
-        _phaseRemaining--;
-        _overallElapsed = (_overallElapsed + 1).clamp(0, _totalWorkoutSeconds);
-      } else {
-        final bool advanced = _advancePhase();
-        if (!advanced) {
-          _timer?.cancel();
-          _phase = TimerPhase.complete;
-        }
+      _snapshot = _engine.tick(_snapshot);
+      if (_snapshot.isComplete) {
+        _timer?.cancel();
       }
     });
-  }
-
-  bool _advancePhase() {
-    if (!_hasRounds) {
-      return false;
-    }
-
-    final totalRounds = widget.rounds ?? 0;
-
-    if (_phase == TimerPhase.work) {
-      if (_hasRest && _currentRound < totalRounds) {
-        _phase = TimerPhase.rest;
-        _phaseDuration = widget.interval!;
-        _phaseRemaining = _phaseDuration;
-        return true;
-      }
-      if (_currentRound < totalRounds) {
-        _currentRound++;
-        _phase = TimerPhase.work;
-        _phaseDuration = widget.duration;
-        _phaseRemaining = _phaseDuration;
-        return true;
-      }
-      return false;
-    }
-
-    if (_phase == TimerPhase.rest) {
-      _currentRound++;
-      if (_currentRound <= totalRounds) {
-        _phase = TimerPhase.work;
-        _phaseDuration = widget.duration;
-        _phaseRemaining = _phaseDuration;
-        return true;
-      }
-    }
-
-    return false;
   }
 
   void _pauseTimer() {
@@ -228,25 +177,11 @@ class TimerScreenState extends State<TimerScreen> {
   }
 
   Future<void> _playNativeBeep(Duration duration) async {
-    try {
-      await _beepChannel.invokeMethod<void>('playBeep', {
-        'durationMs': duration.inMilliseconds,
-      });
-    } on MissingPluginException {
-      // Audio cues are non-critical; the timer should still run without them.
-    } on PlatformException {
-      // Audio cues are non-critical; the timer should still run without them.
-    }
+    await widget.beepService.play(duration);
   }
 
   Future<void> _stopNativeBeep() async {
-    try {
-      await _beepChannel.invokeMethod<void>('stopBeep');
-    } on MissingPluginException {
-      // Audio cues are non-critical; the timer should still run without them.
-    } on PlatformException {
-      // Audio cues are non-critical; the timer should still run without them.
-    }
+    await widget.beepService.stop();
   }
 
   String _formatTime(int seconds) {
@@ -263,7 +198,7 @@ class TimerScreenState extends State<TimerScreen> {
     if (!_hasRounds) {
       return l10n.timerPhase;
     }
-    return _phase == TimerPhase.rest ? l10n.rest : l10n.work;
+    return _phase == WorkoutTimerPhase.rest ? l10n.rest : l10n.work;
   }
 
   String? _nextUpLabel(BuildContext context) {
@@ -274,14 +209,15 @@ class TimerScreenState extends State<TimerScreen> {
     final l10n = AppLocalizations.of(context);
     final totalRounds = widget.rounds ?? 0;
 
-    if (_phase == TimerPhase.work) {
+    if (_phase == WorkoutTimerPhase.work) {
       if (_hasRest && _currentRound < totalRounds) {
         return l10n.nextRest(_formatTime(widget.interval!));
       }
       if (_currentRound < totalRounds) {
         return l10n.nextRound(_currentRound + 1);
       }
-    } else if (_phase == TimerPhase.rest && _currentRound < totalRounds) {
+    } else if (_phase == WorkoutTimerPhase.rest &&
+        _currentRound < totalRounds) {
       return l10n.nextRound(_currentRound + 1);
     }
 
@@ -289,7 +225,9 @@ class TimerScreenState extends State<TimerScreen> {
   }
 
   Color _phaseColor(ColorScheme scheme) {
-    return _phase == TimerPhase.rest ? scheme.tertiary : widget.accentColor;
+    return _phase == WorkoutTimerPhase.rest
+        ? scheme.tertiary
+        : widget.accentColor;
   }
 
   @override
@@ -363,7 +301,7 @@ class TimerScreenState extends State<TimerScreen> {
             children: [
               Expanded(
                 child: _StatusChip(
-                  icon: _phase == TimerPhase.rest
+                  icon: _phase == WorkoutTimerPhase.rest
                       ? Icons.self_improvement
                       : Icons.fitness_center,
                   label: l10n.workout,
@@ -414,8 +352,9 @@ class TimerScreenState extends State<TimerScreen> {
                     value: _totalProgress,
                     minHeight: 7,
                     backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(_phaseColor(scheme)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _phaseColor(scheme),
+                    ),
                   ),
                 ),
               ),
@@ -507,8 +446,10 @@ class TimerScreenState extends State<TimerScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight =
-            math.max(220.0, constraints.maxHeight - (_hasRounds ? 44 : 0));
+        final availableHeight = math.max(
+          220.0,
+          constraints.maxHeight - (_hasRounds ? 44 : 0),
+        );
         final size = math
             .min(constraints.maxWidth, availableHeight)
             .clamp(220.0, 360.0)
@@ -715,10 +656,7 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.label,
-    required this.value,
-  });
+  const _MetricTile({required this.label, required this.value});
 
   final String label;
   final String value;
