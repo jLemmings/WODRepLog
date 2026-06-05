@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   release:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+    if: ${{ github.actor != 'github-actions[bot]' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     env:
       JAVA_VERSION: 21
@@ -101,7 +101,10 @@ jobs:
             should_publish=true
           elif [ "$EVENT_NAME" = "workflow_dispatch" ] && \
                [ "$PUBLISH_EXISTING_RELEASE" = "true" ] && \
-               [ "$release_exists" = true ]; then
+               { [ "$release_exists" = true ] || [ "$tag_exists" = true ]; }; then
+            if [ "$release_exists" = false ]; then
+              should_create=true
+            fi
             should_publish=true
           fi
 

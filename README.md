@@ -62,7 +62,7 @@ GitHub Actions never changes `pubspec.yaml` automatically. Update the visible `m
 
 Pushing to `master` runs the **Release and Publish** workflow. It compares the checked-in `major.minor.patch` version from `pubspec.yaml` with the previous `master` commit. If `major.minor.patch` changed and no `v<major.minor.patch>` GitHub release or tag exists, it builds and signs the app bundle, uploads it to the configured Google Play track, then creates the GitHub Release.
 
-If a GitHub Release already exists but the Play upload did not run, manually run **Release and Publish** with `publish_existing_release` enabled. The workflow publishes the release matching the checked-in `pubspec.yaml` version.
+If the GitHub tag or release already exists but the Play upload did not run, manually run **Release and Publish** from `master` with `publish_existing_release` enabled. The workflow publishes the release matching the checked-in `pubspec.yaml` version and creates the GitHub Release if only the tag exists.
 
 
 https://medium.com/lodgify-technology-blog/deploy-your-flutter-app-to-google-play-with-github-actions-f13a11c4492e
