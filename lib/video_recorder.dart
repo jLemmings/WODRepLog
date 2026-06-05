@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_localizations.dart';
 
@@ -52,6 +53,17 @@ class VideoRecorder extends StatefulWidget {
 }
 
 class VideoRecorderState extends State<VideoRecorder> {
+  static const String _athleteNamePreferenceKey = 'recorderAthleteName';
+  static const String _eventNamePreferenceKey = 'recorderEventName';
+  static const String _workoutTitlePreferenceKey = 'recorderWorkoutTitle';
+  static const String _countdownSecondsPreferenceKey =
+      'recorderCountdownSeconds';
+  static const String _timerTypePreferenceKey = 'recorderTimerType';
+  static const String _timerIntervalSecondsPreferenceKey =
+      'recorderTimerIntervalSeconds';
+  static const String _timerRoundsPreferenceKey = 'recorderTimerRounds';
+  static const String _timerTotalSecondsPreferenceKey =
+      'recorderTimerTotalSeconds';
   static const MethodChannel _videoOverlayChannel = MethodChannel(
     'ch.joshuahemmings.wodreplog/video_overlay',
   );
@@ -79,9 +91,21 @@ class VideoRecorderState extends State<VideoRecorder> {
   void initState() {
     super.initState();
     _athleteName = widget.initialAthleteName.trim();
+    unawaited(_loadStoredSettings());
     _initializeCamera();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void didUpdateWidget(covariant VideoRecorder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previousInitialAthleteName = oldWidget.initialAthleteName.trim();
+    final nextInitialAthleteName = widget.initialAthleteName.trim();
+    if (_athleteName == previousInitialAthleteName &&
+        nextInitialAthleteName != previousInitialAthleteName) {
+      _athleteName = nextInitialAthleteName;
+    }
   }
 
   @override
@@ -109,6 +133,103 @@ class VideoRecorderState extends State<VideoRecorder> {
       _showErrorSnackBar(
         AppLocalizations.of(context).failedInitializeCamera(e.toString()),
       );
+    }
+  }
+
+  Future<void> _loadStoredSettings() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final storedAthleteName = preferences.getString(_athleteNamePreferenceKey);
+    final storedEventName = preferences.getString(_eventNamePreferenceKey);
+    final storedWorkoutTitle = preferences.getString(
+      _workoutTitlePreferenceKey,
+    );
+    final storedCountdownSeconds = preferences.getInt(
+      _countdownSecondsPreferenceKey,
+    );
+    final storedTimerConfiguration = _storedTimerConfiguration(preferences);
+
+    setState(() {
+      if (storedAthleteName != null) {
+        _athleteName = storedAthleteName;
+      }
+      if (storedEventName != null) {
+        _eventName = storedEventName;
+      }
+      if (storedWorkoutTitle != null) {
+        _workoutTitle = storedWorkoutTitle;
+      }
+      if (storedCountdownSeconds != null) {
+        _countdownSeconds = storedCountdownSeconds;
+      }
+      _timerConfig = storedTimerConfiguration;
+    });
+  }
+
+  TimerConfiguration? _storedTimerConfiguration(SharedPreferences preferences) {
+    final timerTypeName = preferences.getString(_timerTypePreferenceKey);
+    final timerType = WorkoutTimerType.values
+        .where((type) => type.name == timerTypeName)
+        .firstOrNull;
+    if (timerType == null) return null;
+
+    switch (timerType) {
+      case WorkoutTimerType.emom:
+        return TimerConfiguration(
+          type: timerType,
+          intervalSeconds: preferences.getInt(
+            _timerIntervalSecondsPreferenceKey,
+          ),
+          rounds: preferences.getInt(_timerRoundsPreferenceKey),
+        );
+      case WorkoutTimerType.amrap:
+      case WorkoutTimerType.forTime:
+        return TimerConfiguration(
+          type: timerType,
+          totalSeconds: preferences.getInt(_timerTotalSecondsPreferenceKey),
+        );
+    }
+  }
+
+  Future<void> _storeSettings() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_athleteNamePreferenceKey, _athleteName);
+    await preferences.setString(_eventNamePreferenceKey, _eventName);
+    await preferences.setString(_workoutTitlePreferenceKey, _workoutTitle);
+    await preferences.setInt(_countdownSecondsPreferenceKey, _countdownSeconds);
+
+    final timerConfig = _timerConfig;
+    if (timerConfig == null) {
+      await preferences.remove(_timerTypePreferenceKey);
+      await preferences.remove(_timerIntervalSecondsPreferenceKey);
+      await preferences.remove(_timerRoundsPreferenceKey);
+      await preferences.remove(_timerTotalSecondsPreferenceKey);
+      return;
+    }
+
+    await preferences.setString(_timerTypePreferenceKey, timerConfig.type.name);
+    switch (timerConfig.type) {
+      case WorkoutTimerType.emom:
+        await preferences.setInt(
+          _timerIntervalSecondsPreferenceKey,
+          timerConfig.intervalSeconds ?? 60,
+        );
+        await preferences.setInt(
+          _timerRoundsPreferenceKey,
+          timerConfig.rounds ?? 10,
+        );
+        await preferences.remove(_timerTotalSecondsPreferenceKey);
+        break;
+      case WorkoutTimerType.amrap:
+      case WorkoutTimerType.forTime:
+        await preferences.setInt(
+          _timerTotalSecondsPreferenceKey,
+          timerConfig.totalSeconds ?? 0,
+        );
+        await preferences.remove(_timerIntervalSecondsPreferenceKey);
+        await preferences.remove(_timerRoundsPreferenceKey);
+        break;
     }
   }
 
@@ -334,12 +455,16 @@ class VideoRecorderState extends State<VideoRecorder> {
   }
 
   Future<void> _openSettingsSheet() async {
+    final athleteName = _athleteName.trim().isNotEmpty
+        ? _athleteName
+        : widget.initialAthleteName.trim();
+
     final result = await showModalBottomSheet<RecorderSettings>(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => RecorderSettingsSheet(
-        athleteName: _athleteName,
+        athleteName: athleteName,
         eventName: _eventName,
         workoutTitle: _workoutTitle,
         countdownSeconds: _countdownSeconds,
@@ -359,6 +484,7 @@ class VideoRecorderState extends State<VideoRecorder> {
       _countdownRemaining = 0;
       _isCountingDown = false;
     });
+    await _storeSettings();
 
     _ticker?.cancel();
     _countdownTicker?.cancel();
@@ -367,7 +493,7 @@ class VideoRecorderState extends State<VideoRecorder> {
     }
   }
 
-  void _clearOverlay() {
+  Future<void> _clearOverlay() async {
     if (_isRecording) {
       _showErrorSnackBar(AppLocalizations.of(context).stopBeforeClearing);
       return;
@@ -385,6 +511,7 @@ class VideoRecorderState extends State<VideoRecorder> {
     });
     _countdownTicker?.cancel();
     _ticker?.cancel();
+    await _storeSettings();
   }
 
   String _formatDuration(Duration duration) {
@@ -431,8 +558,8 @@ class VideoRecorderState extends State<VideoRecorder> {
     }
 
     final lines = <_OverlayLine>[
-      if (hasEvent) _OverlayLine(l10n.event, _eventName),
       if (hasAthlete) _OverlayLine(l10n.athlete, _athleteName),
+      if (hasEvent) _OverlayLine(l10n.event, _eventName),
       if (hasWorkout) _OverlayLine(l10n.workout, _workoutTitle),
     ];
 

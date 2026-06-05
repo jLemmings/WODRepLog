@@ -139,16 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                if (widget.athleteName.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.athleteGreeting(widget.athleteName.trim()),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.82),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 8),
                 Text(
                   l10n.homeSubtitle,

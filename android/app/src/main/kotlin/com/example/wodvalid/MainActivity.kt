@@ -241,13 +241,13 @@ private class ProofOverlay(
     private fun drawOverlay(elapsedSeconds: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val scale = max(0.62f, min(width, height) / 1080f * 0.84f)
+        val scale = max(0.70f, min(width, height) / 1080f * 0.96f)
         val margin = 24f * scale
         val panelGap = 16f * scale
-        val panelWidth = min(width * 0.38f, 480f * scale)
+        val panelWidth = min(width * 0.40f, 520f * scale)
         val metadataLines = buildList {
-            if (eventName.isNotBlank()) add(eventLabel to eventName)
             if (athleteName.isNotBlank()) add(athleteLabel to athleteName)
+            if (eventName.isNotBlank()) add(eventLabel to eventName)
             if (workoutTitle.isNotBlank()) add(workoutLabel to workoutTitle)
         }
         val timerLines = buildTimerLines(elapsedSeconds)
