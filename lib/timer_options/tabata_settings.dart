@@ -4,7 +4,6 @@ import '../l10n/app_localizations.dart';
 import '../services/app_services.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
-import 'timer_picker_sheet.dart';
 import 'timer_settings_layout.dart';
 
 class TabataSettings extends StatefulWidget {
@@ -36,74 +35,48 @@ class TabataSettingsState extends State<TabataSettings> {
   Widget build(BuildContext context) {
     final accentColor = Theme.of(context).colorScheme.tabataColor;
     final l10n = AppLocalizations.of(context);
-    final workLabel = _formatTime(_workMinutes, _workSeconds);
-    final restLabel = _formatTime(_restMinutes, _restSeconds);
     final totalLabel = _formatTime(_totalTime ~/ 60, _totalTime % 60);
 
     return TimerSettingsLayout(
       accentColor: accentColor,
       title: l10n.tabataTitle,
       subtitle: l10n.tabataDescription,
-      icon: Icons.loop,
+      icon: Icons.autorenew_rounded,
       content: [
-        TimerSettingsTile(
+        TimerNumberStepperCard(
           accentColor: accentColor,
           label: l10n.rounds,
-          value: '$_rounds',
+          value: _rounds,
           helper: l10n.tabataRoundsHelper,
-          icon: Icons.replay_circle_filled,
-          onTap: () {
-            showTimerNumberPicker(
-              context: context,
-              items: List<int>.generate(30, (index) => index + 1),
-              initialValue: _rounds,
-              onSelectedItemChanged: (value) {
-                setState(() => _rounds = value);
-              },
-              accentColor: accentColor,
-            );
+          maxValue: 30,
+          onChanged: (value) {
+            setState(() => _rounds = value);
           },
         ),
-        TimerSettingsTile(
+        TimerTimeStepperCard(
           accentColor: accentColor,
           label: l10n.workInterval,
-          value: workLabel,
           helper: l10n.workIntervalHelper,
-          icon: Icons.fitness_center,
-          onTap: () {
-            showTimerTimePicker(
-              context: context,
-              accentColor: accentColor,
-              initialMinutes: _workMinutes,
-              initialSeconds: _workSeconds,
-              onMinutesChanged: (value) {
-                setState(() => _workMinutes = value);
-              },
-              onSecondsChanged: (value) {
-                setState(() => _workSeconds = value);
-              },
-            );
+          minutes: _workMinutes,
+          seconds: _workSeconds,
+          onMinutesChanged: (value) {
+            setState(() => _workMinutes = value);
+          },
+          onSecondsChanged: (value) {
+            setState(() => _workSeconds = value);
           },
         ),
-        TimerSettingsTile(
+        TimerTimeStepperCard(
           accentColor: accentColor,
           label: l10n.restInterval,
-          value: restLabel,
           helper: l10n.restIntervalHelper,
-          icon: Icons.bedtime,
-          onTap: () {
-            showTimerTimePicker(
-              context: context,
-              accentColor: accentColor,
-              initialMinutes: _restMinutes,
-              initialSeconds: _restSeconds,
-              onMinutesChanged: (value) {
-                setState(() => _restMinutes = value);
-              },
-              onSecondsChanged: (value) {
-                setState(() => _restSeconds = value);
-              },
-            );
+          minutes: _restMinutes,
+          seconds: _restSeconds,
+          onMinutesChanged: (value) {
+            setState(() => _restMinutes = value);
+          },
+          onSecondsChanged: (value) {
+            setState(() => _restSeconds = value);
           },
         ),
       ],

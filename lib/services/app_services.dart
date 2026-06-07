@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/lift_stats.dart';
 import '../domain/recorder_settings.dart';
 import '../domain/workout_timer.dart';
 
@@ -256,5 +259,40 @@ class RecorderSettingsStore {
         await _preferences.remove(_timerRoundsKey);
         break;
     }
+  }
+}
+
+class LiftStatsStore {
+  const LiftStatsStore(this._preferences);
+
+  static const _entriesKey = 'liftStatsEntries';
+
+  final SharedPreferences _preferences;
+
+  LiftStats load() {
+    final encoded = _preferences.getString(_entriesKey);
+    if (encoded == null || encoded.isEmpty) {
+      return const LiftStats(entries: []);
+    }
+
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! List) return const LiftStats(entries: []);
+      final entries =
+          decoded
+              .whereType<Map<String, Object?>>()
+              .map(LiftEntry.fromJson)
+              .where((entry) => entry.liftName.trim().isNotEmpty)
+              .toList()
+            ..sort((a, b) => a.performedAt.compareTo(b.performedAt));
+      return LiftStats(entries: entries);
+    } on FormatException {
+      return const LiftStats(entries: []);
+    }
+  }
+
+  Future<void> save(List<LiftEntry> entries) async {
+    final encoded = jsonEncode(entries.map((entry) => entry.toJson()).toList());
+    await _preferences.setString(_entriesKey, encoded);
   }
 }

@@ -4,7 +4,6 @@ import '../l10n/app_localizations.dart';
 import '../services/app_services.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
-import 'timer_picker_sheet.dart';
 import 'timer_settings_layout.dart';
 
 class ForTimeSettings extends StatefulWidget {
@@ -38,25 +37,17 @@ class ForTimeSettingsState extends State<ForTimeSettings> {
       subtitle: l10n.forTimeDescription,
       icon: Icons.flag_outlined,
       content: [
-        TimerSettingsTile(
+        TimerTimeStepperCard(
           accentColor: accentColor,
           label: l10n.timeCap,
-          value: formatted,
           helper: l10n.timeCapHelper,
-          icon: Icons.hourglass_top,
-          onTap: () {
-            showTimerTimePicker(
-              context: context,
-              accentColor: accentColor,
-              initialMinutes: _durationMinutes,
-              initialSeconds: _durationSeconds,
-              onMinutesChanged: (value) {
-                setState(() => _durationMinutes = value);
-              },
-              onSecondsChanged: (value) {
-                setState(() => _durationSeconds = value);
-              },
-            );
+          minutes: _durationMinutes,
+          seconds: _durationSeconds,
+          onMinutesChanged: (value) {
+            setState(() => _durationMinutes = value);
+          },
+          onSecondsChanged: (value) {
+            setState(() => _durationSeconds = value);
           },
         ),
       ],

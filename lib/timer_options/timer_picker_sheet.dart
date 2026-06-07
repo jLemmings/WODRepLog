@@ -136,7 +136,7 @@ TextStyle _pickerTextStyle(ThemeData theme) {
 class _PickerShell extends StatelessWidget {
   const _PickerShell({required this.accentColor, required this.child});
 
-  static const _modalBackground = Color(0xFF101318);
+  static const _modalBackground = Color(0xFF0E1520);
 
   final Color accentColor;
   final Widget child;

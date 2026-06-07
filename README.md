@@ -1,46 +1,109 @@
-![WODRepLog logo](assets/icon/app_icon.png)
+<p align="center">
+  <img src="./assets/icon/app_icon.png" alt="WODRepLog" width="140">
+</p>
 
-# wodreplog
+<h1 align="center">WODRepLog</h1>
 
-A new Flutter project.
+<p align="center">
+  <a href="#quick-start">Quick Start</a>
+  |
+  <a href="#features">Features</a>
+  |
+  <a href="#recording-workflow">Recording Workflow</a>
+  |
+  <a href="#developer-notes">Developer Notes</a>
+  |
+  <a href="#release-builds">Release Builds</a>
+</p>
 
-## Getting Started
+WODRepLog is a Flutter workout logging app for setting CrossFit-style timers, recording workout proof videos with overlays, and tracking strength progress over time.
 
-This project is a starting point for a Flutter application.
+The app is built around a simple flow:
 
-A few resources to get you started if this is your first Flutter project:
+1. Set up a workout timer for AMRAP, EMOM, For Time, or Tabata.
+2. Configure athlete, event, workout, countdown, and timer overlay details.
+3. Record workout proof video with the configured overlay.
+4. Log lifts and review PRs, estimated 1RM progress, and reps at weight.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Quick Start
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Install Flutter, fetch dependencies, and run the app:
 
+```powershell
+flutter pub get
+flutter run
+```
 
-## Dependency management
-- Direct Dart/Flutter dependencies in `pubspec.yaml` are pinned to exact versions.
-- `pubspec.lock` is committed and CI installs with `flutter pub get --enforce-lockfile` to guarantee reproducible resolution.
-- Renovate maintains dependency update PRs and lockfile maintenance on a weekly schedule (`renovate.json`).
+To launch a local Android emulator first:
 
-## Dev
+```powershell
 flutter emulators --launch Pixel_10
 flutter run
+```
 
-## Build
-- `pwsh ./scripts/build_android_apk.ps1`
-- `flutter build appbundle`
-- bundletool build-apks --bundle=build/app/outputs/bundle/release/app-release.aab --output=build/app/outputs/apk/release/wodreplog.apks
-- adb pair ip:port
-- adb devices
-- bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
+The app uses Flutter `3.44.1` and Dart `3.12.1` as declared in `pubspec.yaml`.
 
-### Local Android APK build
+## Features
+
+- Branded main tabs for Timer, Log, and Stats.
+- AMRAP, EMOM, For Time, and Tabata timer setup flows.
+- Compact timer controls for minutes, seconds, rounds, work intervals, and rest intervals.
+- Full-screen workout timer with pause, resume, and reset controls.
+- Recording setup screen for athlete, event, workout, countdown, and timer overlay details.
+- Camera recording view with workout metadata and timer overlays.
+- Persisted Log tab settings so the latest recording setup is restored.
+- Strength stats for lifts, including PR detection, estimated 1RM trends, and reps-at-weight history.
+- Preset lift selector with Olympic lifts, powerlifting lifts, machine lifts, and common accessory movements.
+- English and German localization support.
+
+## Recording Workflow
+
+WODRepLog keeps overlay setup separate from the camera screen. The Log tab is where recording details are configured before entering the camera view.
+
+1. Enter athlete, event, workout, countdown, and timer overlay settings in the Log tab.
+2. Tap `Recording`.
+3. The latest settings are saved locally.
+4. The camera view opens with the configured overlay.
+5. Start and stop the recording from the camera view.
+
+## Stats Workflow
+
+The Stats tab tracks lift entries over time.
+
+1. Add a lift from the preset lift dropdown.
+2. Enter weight and reps.
+3. Choose the displayed lift from the Stats dropdown.
+4. Review current PR, estimated 1RM trend, and recent reps at weight.
+
+## Developer Notes
+
+Run the static analyzer:
+
+```powershell
+flutter analyze
+```
+
+Run tests:
+
+```powershell
+flutter test
+```
+
+Regenerate launcher icons after changing the icon assets:
+
+```powershell
+flutter pub run flutter_launcher_icons:main
+```
+
+Direct Dart and Flutter dependencies in `pubspec.yaml` are pinned to exact versions. `pubspec.lock` is committed so dependency resolution remains reproducible.
+
+## Release Builds
+
 For a local Windows release APK build, install:
 
-- Flutter `3.41.7` or newer (`pubspec.lock` currently resolves with Flutter `>=3.38.4`)
-- A JDK with `keytool` on `PATH`
-- Android SDK with platform `android-36` and build-tools installed
+- Flutter `3.44.1` or newer compatible with the pinned SDK constraints.
+- A JDK with `keytool` on `PATH`.
+- Android SDK with platform `android-36` and build tools installed.
 
 Then run:
 
@@ -48,42 +111,25 @@ Then run:
 pwsh ./scripts/build_android_apk.ps1
 ```
 
-The script:
+The script detects the Android SDK, updates `android/local.properties`, creates a debug keystore when no release keystore is configured, reads the visible version from `pubspec.yaml`, and computes the Android version code.
 
-- detects the Android SDK from `-AndroidSdkPath`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or standard Windows SDK locations
-- updates `android/local.properties` with `flutter.sdk` and `sdk.dir`
-- creates `~/.android/debug.keystore` if no release keystore is configured
-- reads the visible version from `pubspec.yaml`
-- computes the Android version code from the visible version
-- enables debug signing fallback for local release APK builds
+To build an Android App Bundle manually:
 
-### Continuous delivery
-GitHub Actions never changes `pubspec.yaml` automatically. Update the visible `major.minor.patch` version when you want a new release. The Android version code is computed from that version as `major * 100000000 + minor * 1000000 + patch * 10000`.
+```powershell
+flutter build appbundle
+```
 
-Pushing to `master` runs the **Release and Publish** workflow. It compares the checked-in `major.minor.patch` version from `pubspec.yaml` with the previous `master` commit. If `major.minor.patch` changed and no `v<major.minor.patch>` GitHub release or tag exists, it builds and signs the app bundle, uploads it to the configured Google Play track, then creates the GitHub Release.
+To build and install APKs from the bundle:
 
-If the GitHub tag or release already exists but the Play upload did not run, manually run **Release and Publish** from `master` with `publish_existing_release` enabled. The workflow publishes the release matching the checked-in `pubspec.yaml` version and creates the GitHub Release if only the tag exists.
+```powershell
+bundletool build-apks --bundle=build/app/outputs/bundle/release/app-release.aab --output=build/app/outputs/apk/release/wodreplog.apks
+bundletool install-apks --apks=build/app/outputs/apk/release/wodreplog.apks --device-id=DEVICE_ID
+```
 
+## Continuous Delivery
 
-https://medium.com/lodgify-technology-blog/deploy-your-flutter-app-to-google-play-with-github-actions-f13a11c4492e
-https://tbrgroup.software/flutter-build-and-deploy-android-apps-using-github-actions/
+GitHub Actions does not change `pubspec.yaml` automatically. Update the visible `major.minor.patch` version when preparing a new release.
 
-# Colours
-Primary:
-    Dark Charcoal (#1C1C1E)
-    Graphite Gray (#2C2C2E)
+Pushing to `master` runs the **Release and Publish** workflow. If the checked-in version changed and no matching `v<major.minor.patch>` GitHub release or tag exists, the workflow builds and signs the app bundle, uploads it to the configured Google Play track, and creates the GitHub Release.
 
-Accent Colors:
-    Electric Blue (#007AFF)
-    Neon Green (#32FF7E)
-    Fiery Orange (#FF9500)
-
-Neutral Colors:
-    Cool Gray (#8E8E93)
-    Soft White (#EFEFF4)
-
-Special Elements:
-    Crimson Red (#FF3B30)
-
-# Logo
-flutter pub run flutter_launcher_icons:main
+If a tag or release already exists but the Play upload did not run, manually run **Release and Publish** from `master` with `publish_existing_release` enabled.

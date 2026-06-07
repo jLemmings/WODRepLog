@@ -124,18 +124,6 @@ class VideoRecorderState extends State<VideoRecorder> {
     });
   }
 
-  Future<void> _storeSettings() async {
-    await widget.settingsStore.save(
-      RecorderSettings(
-        athleteName: _athleteName,
-        eventName: _eventName,
-        workoutTitle: _workoutTitle,
-        countdownSeconds: _countdownSeconds,
-        timerConfiguration: _timerConfig,
-      ),
-    );
-  }
-
   Future<void> _startRecording() async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized || _isRecording) {
@@ -333,66 +321,6 @@ class VideoRecorderState extends State<VideoRecorder> {
     return total > 0 && elapsed.inSeconds >= total;
   }
 
-  Future<void> _openSettingsSheet() async {
-    final athleteName = _athleteName.trim().isNotEmpty
-        ? _athleteName
-        : widget.initialAthleteName.trim();
-
-    final result = await showModalBottomSheet<RecorderSettings>(
-      context: context,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      builder: (context) => RecorderSettingsSheet(
-        athleteName: athleteName,
-        eventName: _eventName,
-        workoutTitle: _workoutTitle,
-        countdownSeconds: _countdownSeconds,
-        timerConfiguration: _timerConfig,
-      ),
-    );
-
-    if (result == null) return;
-
-    setState(() {
-      _athleteName = result.athleteName.trim();
-      _eventName = result.eventName.trim();
-      _workoutTitle = result.workoutTitle.trim();
-      _timerConfig = result.timerConfiguration;
-      _countdownSeconds = result.countdownSeconds;
-      _elapsed = Duration.zero;
-      _countdownRemaining = 0;
-      _isCountingDown = false;
-    });
-    await _storeSettings();
-
-    _ticker?.cancel();
-    _countdownTicker?.cancel();
-    if (_isRecording) {
-      _startCountdownOrTimer();
-    }
-  }
-
-  Future<void> _clearOverlay() async {
-    if (_isRecording) {
-      _showErrorSnackBar(AppLocalizations.of(context).stopBeforeClearing);
-      return;
-    }
-
-    setState(() {
-      _athleteName = '';
-      _eventName = '';
-      _workoutTitle = '';
-      _timerConfig = null;
-      _countdownSeconds = 0;
-      _elapsed = Duration.zero;
-      _countdownRemaining = 0;
-      _isCountingDown = false;
-    });
-    _countdownTicker?.cancel();
-    _ticker?.cancel();
-    await _storeSettings();
-  }
-
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -573,60 +501,8 @@ class VideoRecorderState extends State<VideoRecorder> {
           _buildMetadataOverlay(context),
           _buildTimerOverlay(context),
           _buildRecordingBadge(),
-          _buildTopActions(context),
           _buildRecordControl(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTopActions(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Align(
-      alignment: Alignment.topCenter,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _ControlButton(
-                    icon: Icons.badge_rounded,
-                    label: l10n.details,
-                    onPressed: _isRecording || _isProcessingVideo
-                        ? null
-                        : _openSettingsSheet,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ControlButton(
-                    icon: Icons.restart_alt_rounded,
-                    label: l10n.reset,
-                    onPressed:
-                        _isRecording ||
-                            _isProcessingVideo ||
-                            (_athleteName.isEmpty &&
-                                _eventName.isEmpty &&
-                                _workoutTitle.isEmpty &&
-                                _timerConfig == null &&
-                                _countdownSeconds <= 0)
-                        ? null
-                        : _clearOverlay,
-                    tone: ControlButtonTone.subtle,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -747,62 +623,6 @@ class _ProofOverlayPanel extends StatelessWidget {
   }
 }
 
-enum ControlButtonTone { primary, subtle }
-
-class _ControlButton extends StatelessWidget {
-  const _ControlButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.tone = ControlButtonTone.primary,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final ControlButtonTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onPressed != null;
-    final background = tone == ControlButtonTone.primary
-        ? Colors.white.withValues(alpha: isEnabled ? 0.15 : 0.05)
-        : Colors.white.withValues(alpha: isEnabled ? 0.08 : 0.04);
-    final borderColor = Colors.white.withValues(alpha: 0.12);
-    final foreground = Colors.white.withValues(alpha: isEnabled ? 0.9 : 0.4);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: background,
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: foreground),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _RecordButton extends StatelessWidget {
   const _RecordButton({required this.isRecording, required this.onPressed});
 
@@ -811,42 +631,63 @@ class _RecordButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = isRecording ? 'STOP' : 'START';
+    final labelColor = Colors.white.withValues(
+      alpha: onPressed == null ? 0.4 : 0.92,
+    );
+
     return GestureDetector(
       onTap: onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 84,
-        height: 84,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: onPressed == null ? 0.04 : 0.1),
-          border: Border.all(
-            color: Colors.white.withValues(
-              alpha: onPressed == null ? 0.08 : 0.25,
-            ),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isRecording
-                  ? Colors.redAccent.withValues(alpha: 0.45)
-                  : Colors.black.withValues(alpha: 0.45),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Center(
-          child: AnimatedContainer(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            width: isRecording ? 34 : 56,
-            height: isRecording ? 34 : 56,
+            width: 84,
+            height: 84,
             decoration: BoxDecoration(
-              color: isRecording ? Colors.redAccent : Colors.white,
-              borderRadius: BorderRadius.circular(isRecording ? 10 : 999),
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(
+                alpha: onPressed == null ? 0.04 : 0.1,
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(
+                  alpha: onPressed == null ? 0.08 : 0.25,
+                ),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isRecording
+                      ? Colors.redAccent.withValues(alpha: 0.45)
+                      : Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: isRecording ? 34 : 56,
+                height: isRecording ? 34 : 56,
+                decoration: BoxDecoration(
+                  color: isRecording ? Colors.redAccent : Colors.white,
+                  borderRadius: BorderRadius.circular(isRecording ? 10 : 999),
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: TextStyle(
+              color: labelColor,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+            ),
+          ),
+        ],
       ),
     );
   }

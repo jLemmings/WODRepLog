@@ -1,8 +1,13 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import 'app_footer.dart';
+import 'app_header.dart';
+import 'domain/recorder_settings.dart';
+import 'domain/workout_timer.dart';
 import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
+import 'stats_view.dart';
 import 'timer_view.dart';
 import 'video_recorder.dart';
 
@@ -14,6 +19,7 @@ class HomeScreen extends StatefulWidget {
     required this.languageCode,
     required this.onSettingsChanged,
     required this.recorderSettingsStore,
+    required this.liftStatsStore,
     required this.beepService,
     required this.appInfoService,
     required this.videoOverlayService,
@@ -25,6 +31,7 @@ class HomeScreen extends StatefulWidget {
   final String? languageCode;
   final ValueChanged<HomeSettings> onSettingsChanged;
   final RecorderSettingsStore recorderSettingsStore;
+  final LiftStatsStore liftStatsStore;
   final NativeBeepService beepService;
   final AppInfoService appInfoService;
   final VideoOverlayService videoOverlayService;
@@ -52,6 +59,16 @@ class _HomeScreenState extends State<HomeScreen> {
   );
 
   String? _nativeVersionName;
+  late final TextEditingController _athleteController;
+  late final TextEditingController _eventController;
+  late final TextEditingController _workoutController;
+  late final TextEditingController _durationController;
+  late final TextEditingController _intervalController;
+  late final TextEditingController _roundsController;
+  late final TextEditingController _countdownController;
+  final _recorderFormKey = GlobalKey<FormState>();
+  TimerTypeOption _selectedTimerType = TimerTypeOption.none;
+  AppFooterItem _activeItem = AppFooterItem.timer;
 
   String get _versionLabel =>
       _nativeVersionName ??
@@ -60,7 +77,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _athleteController = TextEditingController();
+    _eventController = TextEditingController();
+    _workoutController = TextEditingController();
+    _durationController = TextEditingController();
+    _intervalController = TextEditingController();
+    _roundsController = TextEditingController();
+    _countdownController = TextEditingController();
+    _loadRecorderSettings();
     _loadNativeVersionName();
+  }
+
+  @override
+  void dispose() {
+    _athleteController.dispose();
+    _eventController.dispose();
+    _workoutController.dispose();
+    _durationController.dispose();
+    _intervalController.dispose();
+    _roundsController.dispose();
+    _countdownController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadNativeVersionName() async {
@@ -71,43 +108,193 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _openSettingsSheet() async {
-    final currentLanguageCode =
-        widget.languageCode ?? Localizations.localeOf(context).languageCode;
-    final supportedLanguageCode =
-        AppLocalizations.supportedLocales.any(
-          (locale) => locale.languageCode == currentLanguageCode,
-        )
-        ? currentLanguageCode
-        : 'en';
+  void _loadRecorderSettings() {
+    final settings = widget.recorderSettingsStore.load(
+      fallbackAthleteName: widget.athleteName.trim(),
+    );
+    _athleteController.text = settings.athleteName;
+    _eventController.text = settings.eventName;
+    _workoutController.text = settings.workoutTitle;
+    _countdownController.text = settings.countdownSeconds.toString();
+    _applyTimerConfiguration(settings.timerConfiguration);
+  }
 
-    final result = await showModalBottomSheet<HomeSettings>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _HomeSettingsSheet(
-        athleteName: widget.athleteName,
-        languageCode: supportedLanguageCode,
+  void _applyTimerConfiguration(TimerConfiguration? timer) {
+    _durationController.clear();
+    _intervalController.clear();
+    _roundsController.clear();
+    _selectedTimerType = TimerTypeOption.none;
+
+    if (timer == null) return;
+    switch (timer.type) {
+      case WorkoutTimerType.amrap:
+        _selectedTimerType = TimerTypeOption.amrap;
+        _durationController.text = _secondsToMinutes(timer.totalSeconds);
+        break;
+      case WorkoutTimerType.forTime:
+        _selectedTimerType = TimerTypeOption.forTime;
+        _durationController.text = _secondsToMinutes(timer.totalSeconds);
+        break;
+      case WorkoutTimerType.emom:
+        _selectedTimerType = TimerTypeOption.emom;
+        _intervalController.text = (timer.intervalSeconds ?? 60).toString();
+        _roundsController.text = (timer.rounds ?? 10).toString();
+        break;
+      case WorkoutTimerType.tabata:
+        _selectedTimerType = TimerTypeOption.none;
+        break;
+    }
+  }
+
+  Future<void> _startRecordingFlow() async {
+    final settings = _recorderSettingsFromForm();
+    if (settings == null) return;
+    await widget.recorderSettingsStore.save(settings);
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => VideoRecorder(
+          camera: widget.camera,
+          initialAthleteName: settings.athleteName.trim().isNotEmpty
+              ? settings.athleteName
+              : widget.athleteName,
+          settingsStore: widget.recorderSettingsStore,
+          beepService: widget.beepService,
+          videoOverlayService: widget.videoOverlayService,
+          galleryService: widget.galleryService,
+        ),
       ),
     );
+  }
 
-    if (result != null) {
-      widget.onSettingsChanged(result);
+  RecorderSettings? _recorderSettingsFromForm() {
+    if (!(_recorderFormKey.currentState?.validate() ?? false)) {
+      return null;
     }
+
+    TimerConfiguration? timerConfig;
+    switch (_selectedTimerType) {
+      case TimerTypeOption.none:
+        timerConfig = null;
+        break;
+      case TimerTypeOption.amrap:
+        timerConfig = TimerConfiguration(
+          type: WorkoutTimerType.amrap,
+          totalSeconds: _minutesFieldToSeconds(_durationController.text),
+        );
+        break;
+      case TimerTypeOption.forTime:
+        timerConfig = TimerConfiguration(
+          type: WorkoutTimerType.forTime,
+          totalSeconds: _minutesFieldToSeconds(_durationController.text),
+        );
+        break;
+      case TimerTypeOption.emom:
+        timerConfig = TimerConfiguration(
+          type: WorkoutTimerType.emom,
+          intervalSeconds: int.parse(_intervalController.text),
+          rounds: int.parse(_roundsController.text),
+        );
+        break;
+    }
+
+    return RecorderSettings(
+      athleteName: _athleteController.text.trim(),
+      eventName: _eventController.text.trim(),
+      workoutTitle: _workoutController.text.trim(),
+      countdownSeconds: int.parse(_countdownController.text),
+      timerConfiguration: timerConfig,
+    );
+  }
+
+  String _secondsToMinutes(int? seconds) {
+    if (seconds == null || seconds <= 0) return '';
+    final minutes = seconds / 60;
+    if (minutes % 1 == 0) {
+      return minutes.toInt().toString();
+    }
+    return minutes.toStringAsFixed(1);
+  }
+
+  int _minutesFieldToSeconds(String value) {
+    final parsed = double.tryParse(value.replaceAll(',', '.')) ?? 0;
+    return (parsed * 60).round();
+  }
+
+  InputDecoration _recorderInputDecoration(String hint) {
+    final baseBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Colors.transparent),
+    );
+    return InputDecoration(
+      hintText: hint.isEmpty ? null : hint,
+      border: baseBorder,
+      enabledBorder: baseBorder,
+      focusedBorder: baseBorder.copyWith(
+        borderSide: const BorderSide(color: Color(0xFF347FFF), width: 1.4),
+      ),
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.06),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  BoxDecoration _recorderPanelDecoration() {
+    return BoxDecoration(
+      color: const Color(0xFF182A3E),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+    );
+  }
+
+  void _openTimer() {
+    setState(() {
+      _activeItem = AppFooterItem.timer;
+    });
+  }
+
+  void _openLog() {
+    setState(() {
+      _activeItem = AppFooterItem.log;
+    });
+  }
+
+  void _openStats() {
+    setState(() {
+      _activeItem = AppFooterItem.stats;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_activeItem == AppFooterItem.timer) {
+      return TimerView(
+        beepService: widget.beepService,
+        onLogTap: _openLog,
+        onStatsTap: _openStats,
+      );
+    }
+
+    if (_activeItem == AppFooterItem.stats) {
+      return StatsView(
+        statsStore: widget.liftStatsStore,
+        onLogTap: _openLog,
+        onTimerTap: _openTimer,
+      );
+    }
+
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final options = _homeOptions(context);
 
     return Scaffold(
+      appBar: const AppHeader(),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF101318), Color(0xFF171B22)],
+            colors: [Color(0xFF0E1520), Color(0xFF122238)],
           ),
         ),
         child: SafeArea(
@@ -121,41 +308,59 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        l10n.homeQuestion,
+                        l10n.recordProofTitle,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Tooltip(
-                      message: l10n.settings,
-                      child: IconButton.filledTonal(
-                        onPressed: _openSettingsSheet,
-                        icon: const Icon(Icons.settings_rounded),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  l10n.homeSubtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.68),
-                    height: 1.35,
+                Expanded(
+                  child: Form(
+                    key: _recorderFormKey,
+                    child: ListView(
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        Text(
+                          l10n.recordProofSubtitle,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.68),
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _buildOverlayDetailsCard(context),
+                        const SizedBox(height: 16),
+                        _buildTimerOverlayCard(context),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 22),
-                Expanded(
-                  child: ListView.separated(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: options.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      return _ActionPanel(option: options[index]);
-                    },
+                Container(
+                  padding: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  child: FilledButton.icon(
+                    onPressed: _startRecordingFlow,
+                    icon: const Icon(Icons.videocam_rounded),
+                    label: const Text('Recording'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -171,297 +376,305 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: AppFooter(
+        activeItem: AppFooterItem.log,
+        onTimerTap: _openTimer,
+        onStatsTap: _openStats,
+      ),
     );
   }
 
-  List<_HomeOption> _homeOptions(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _buildOverlayDetailsCard(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return [
-      _HomeOption(
-        title: l10n.recordProofTitle,
-        subtitle: l10n.recordProofSubtitle,
-        eyebrow: l10n.cameraEyebrow,
-        icon: Icons.videocam_rounded,
-        color: scheme.primary,
-        builder: (context) => VideoRecorder(
-          camera: widget.camera,
-          initialAthleteName: widget.athleteName,
-          settingsStore: widget.recorderSettingsStore,
-          beepService: widget.beepService,
-          videoOverlayService: widget.videoOverlayService,
-          galleryService: widget.galleryService,
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _recorderPanelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _InlineSectionTitle(
+            icon: Icons.badge_rounded,
+            title: l10n.recordingDetails,
+          ),
+          const SizedBox(height: 16),
+          _FormFieldLabel(text: l10n.athleteName),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _athleteController,
+            textCapitalization: TextCapitalization.words,
+            decoration: _recorderInputDecoration(l10n.athleteNameHint),
+          ),
+          const SizedBox(height: 14),
+          _FormFieldLabel(text: l10n.eventName),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _eventController,
+            textCapitalization: TextCapitalization.words,
+            decoration: _recorderInputDecoration(l10n.eventNameHint),
+          ),
+          const SizedBox(height: 14),
+          _FormFieldLabel(text: l10n.workoutQualifierTitle),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _workoutController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: _recorderInputDecoration(l10n.workoutTitleHint),
+          ),
+          const SizedBox(height: 14),
+          _FormFieldLabel(
+            text: l10n.countdownSeconds,
+            caption: l10n.countdownCaption,
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _countdownController,
+            keyboardType: TextInputType.number,
+            decoration: _recorderInputDecoration(l10n.secondsExampleHint),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return l10n.enterCountdownSeconds;
+              }
+              final parsed = int.tryParse(value);
+              if (parsed == null || parsed < 0) {
+                return l10n.countdownNonNegative;
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimerOverlayCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _recorderPanelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _InlineSectionTitle(
+            icon: Icons.timer_rounded,
+            title: l10n.timerTitle,
+          ),
+          const SizedBox(height: 14),
+          _FormFieldLabel(text: l10n.timerType, caption: l10n.timerTypeCaption),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<TimerTypeOption>(
+            initialValue: _selectedTimerType,
+            isExpanded: true,
+            decoration: _recorderInputDecoration(l10n.selectTimerType),
+            items: [
+              DropdownMenuItem(
+                value: TimerTypeOption.none,
+                child: Text(l10n.noTimerOverlay),
+              ),
+              DropdownMenuItem(
+                value: TimerTypeOption.emom,
+                child: Text(l10n.emomTitle),
+              ),
+              DropdownMenuItem(
+                value: TimerTypeOption.amrap,
+                child: Text(l10n.amrapTitle),
+              ),
+              DropdownMenuItem(
+                value: TimerTypeOption.forTime,
+                child: Text(l10n.forTimeTitle),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedTimerType = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _buildTimerFields(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimerFields() {
+    final l10n = AppLocalizations.of(context);
+    switch (_selectedTimerType) {
+      case TimerTypeOption.none:
+        return Text(
+          key: const ValueKey('timer-none'),
+          l10n.noTimerOverlayMessage,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withValues(alpha: 0.68),
+          ),
+        );
+      case TimerTypeOption.emom:
+        return Column(
+          key: const ValueKey('timer-emom'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _FormFieldLabel(
+              text: l10n.intervalLengthSeconds,
+              caption: l10n.intervalLengthSecondsHelper,
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _intervalController,
+              keyboardType: TextInputType.number,
+              decoration: _recorderInputDecoration(l10n.secondsExampleHint),
+              validator: (value) {
+                if (_selectedTimerType != TimerTypeOption.emom) return null;
+                if (value == null || value.isEmpty) {
+                  return l10n.enterIntervalLength;
+                }
+                final parsed = int.tryParse(value);
+                if (parsed == null || parsed <= 0) {
+                  return l10n.intervalPositive;
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            _FormFieldLabel(text: l10n.rounds, caption: l10n.roundsCaption),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _roundsController,
+              keyboardType: TextInputType.number,
+              decoration: _recorderInputDecoration(l10n.roundsExampleHint),
+              validator: (value) {
+                if (_selectedTimerType != TimerTypeOption.emom) return null;
+                if (value == null || value.isEmpty) {
+                  return l10n.enterRounds;
+                }
+                final parsed = int.tryParse(value);
+                if (parsed == null || parsed <= 0) {
+                  return l10n.roundsPositive;
+                }
+                return null;
+              },
+            ),
+          ],
+        );
+      case TimerTypeOption.amrap:
+        return _buildDurationMinutesField(
+          key: const ValueKey('timer-amrap'),
+          label: l10n.durationMinutes,
+          helper: l10n.durationMinutesHelper,
+        );
+      case TimerTypeOption.forTime:
+        return _buildDurationMinutesField(
+          key: const ValueKey('timer-for-time'),
+          label: l10n.timeCapMinutes,
+          helper: l10n.timeCapMinutesHelper,
+        );
+    }
+  }
+
+  Widget _buildDurationMinutesField({
+    required Key key,
+    required String label,
+    required String helper,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FormFieldLabel(text: label, caption: helper),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _durationController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: _recorderInputDecoration(l10n.minutesExampleHint),
+          validator: (value) {
+            if (_selectedTimerType != TimerTypeOption.amrap &&
+                _selectedTimerType != TimerTypeOption.forTime) {
+              return null;
+            }
+            if (value == null || value.isEmpty) {
+              return l10n.enterDurationMinutes;
+            }
+            final parsed = double.tryParse(value.replaceAll(',', '.'));
+            if (parsed == null || parsed <= 0) {
+              return l10n.durationPositive;
+            }
+            return null;
+          },
         ),
-      ),
-      _HomeOption(
-        title: l10n.workoutTimerTitle,
-        subtitle: l10n.workoutTimerSubtitle,
-        eyebrow: l10n.timerEyebrow,
-        icon: Icons.timer_rounded,
-        color: scheme.secondary,
-        builder: (context) => TimerView(beepService: widget.beepService),
-      ),
-    ];
+      ],
+    );
   }
 }
 
-class _HomeSettingsSheet extends StatefulWidget {
-  const _HomeSettingsSheet({
-    required this.athleteName,
-    required this.languageCode,
-  });
+class _InlineSectionTitle extends StatelessWidget {
+  const _InlineSectionTitle({required this.icon, required this.title});
 
-  final String athleteName;
-  final String languageCode;
-
-  @override
-  State<_HomeSettingsSheet> createState() => _HomeSettingsSheetState();
-}
-
-class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
-  late final TextEditingController _athleteController;
-  late String _languageCode;
-
-  @override
-  void initState() {
-    super.initState();
-    _athleteController = TextEditingController(text: widget.athleteName);
-    _languageCode = widget.languageCode;
-  }
-
-  @override
-  void dispose() {
-    _athleteController.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    Navigator.of(context).pop(
-      HomeSettings(
-        athleteName: _athleteController.text.trim(),
-        languageCode: _languageCode,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    final baseBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Colors.transparent),
-    );
-    return InputDecoration(
-      hintText: hint,
-      border: baseBorder,
-      enabledBorder: baseBorder,
-      focusedBorder: baseBorder.copyWith(
-        borderSide: const BorderSide(color: Color(0xFF42A5F5), width: 1.4),
-      ),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.06),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    );
-  }
+  final IconData icon;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: viewInsets),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    l10n.settings,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.athleteName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _athleteController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: _inputDecoration(l10n.athleteNameHint),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.preferredLanguage,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _languageCode,
-                    isExpanded: true,
-                    decoration: _inputDecoration(l10n.selectLanguage),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'en',
-                        child: Text(l10n.englishLanguage),
-                      ),
-                      DropdownMenuItem(
-                        value: 'de',
-                        child: Text(l10n.germanLanguage),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        _languageCode = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.check),
-                      label: Text(l10n.saveSettings),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      label: Text(l10n.cancel),
-                    ),
-                  ),
-                ],
-              ),
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _HomeOption {
-  const _HomeOption({
-    required this.title,
-    required this.subtitle,
-    required this.eyebrow,
-    required this.icon,
-    required this.color,
-    required this.builder,
-  });
+class _FormFieldLabel extends StatelessWidget {
+  const _FormFieldLabel({required this.text, this.caption});
 
-  final String title;
-  final String subtitle;
-  final String eyebrow;
-  final IconData icon;
-  final Color color;
-  final WidgetBuilder builder;
-}
-
-class _ActionPanel extends StatelessWidget {
-  const _ActionPanel({required this.option});
-
-  final _HomeOption option;
+  final String text;
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: option.builder)),
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1D222B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: option.color.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(option.icon, color: option.color, size: 30),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      option.eyebrow.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: option.color,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.9,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      option.title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      option.subtitle,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.62),
-                        height: 1.28,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          text,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
           ),
         ),
-      ),
+        if (caption != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            caption!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
