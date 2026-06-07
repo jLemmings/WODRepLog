@@ -4,7 +4,6 @@ import '../l10n/app_localizations.dart';
 import '../services/app_services.dart';
 import '../timer_screen.dart';
 import '../theme.dart';
-import 'timer_picker_sheet.dart';
 import 'timer_settings_layout.dart';
 
 class AmrapSettings extends StatefulWidget {
@@ -36,27 +35,19 @@ class AmrapSettingsState extends State<AmrapSettings> {
       accentColor: accentColor,
       title: l10n.amrapTitle,
       subtitle: l10n.amrapDescription,
-      icon: Icons.fitness_center,
+      icon: Icons.change_circle_rounded,
       content: [
-        TimerSettingsTile(
+        TimerTimeStepperCard(
           accentColor: accentColor,
           label: l10n.duration,
-          value: durationLabel,
           helper: l10n.durationHelper,
-          icon: Icons.timelapse,
-          onTap: () {
-            showTimerTimePicker(
-              context: context,
-              accentColor: accentColor,
-              initialMinutes: _minutes,
-              initialSeconds: _seconds,
-              onMinutesChanged: (value) {
-                setState(() => _minutes = value);
-              },
-              onSecondsChanged: (value) {
-                setState(() => _seconds = value);
-              },
-            );
+          minutes: _minutes,
+          seconds: _seconds,
+          onMinutesChanged: (value) {
+            setState(() => _minutes = value);
+          },
+          onSecondsChanged: (value) {
+            setState(() => _seconds = value);
           },
         ),
       ],

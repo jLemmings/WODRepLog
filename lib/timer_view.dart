@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_footer.dart';
+import 'app_header.dart';
 import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
 import 'theme.dart';
@@ -9,9 +11,16 @@ import 'timer_options/for_time_settings.dart';
 import 'timer_options/tabata_settings.dart';
 
 class TimerView extends StatelessWidget {
-  const TimerView({super.key, required this.beepService});
+  const TimerView({
+    super.key,
+    required this.beepService,
+    this.onLogTap,
+    this.onStatsTap,
+  });
 
   final NativeBeepService beepService;
+  final VoidCallback? onLogTap;
+  final VoidCallback? onStatsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -20,24 +29,18 @@ class TimerView extends StatelessWidget {
     final options = _buildOptions(context);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(l10n.workoutTimerTitle),
-      ),
+      appBar: const AppHeader(),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF101318), Color(0xFF161A21)],
+            colors: [Color(0xFF0E1520), Color(0xFF122238)],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+            padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -63,9 +66,9 @@ class TimerView extends StatelessWidget {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.86,
+                          crossAxisSpacing: 18,
+                          mainAxisSpacing: 18,
+                          childAspectRatio: 0.74,
                         ),
                     itemCount: options.length,
                     itemBuilder: (context, index) {
@@ -78,6 +81,14 @@ class TimerView extends StatelessWidget {
           ),
         ),
       ),
+      bottomNavigationBar: AppFooter(
+        activeItem: AppFooterItem.timer,
+        activeColor: Theme.of(context).colorScheme.primary,
+        onLogTap:
+            onLogTap ??
+            () => Navigator.of(context).popUntil((route) => route.isFirst),
+        onStatsTap: onStatsTap,
+      ),
     );
   }
 
@@ -87,29 +98,25 @@ class TimerView extends StatelessWidget {
     return [
       _TimerOptionData(
         title: l10n.amrapTitle,
-        subtitle: l10n.amrapCardDescription,
-        icon: Icons.fitness_center_rounded,
+        icon: Icons.change_circle_rounded,
         color: colorScheme.amrapColor,
         builder: (context) => AmrapSettings(beepService: beepService),
       ),
       _TimerOptionData(
-        title: l10n.forTimeTitle,
-        subtitle: l10n.forTimeCardDescription,
-        icon: Icons.flag_rounded,
-        color: colorScheme.forTimeColor,
-        builder: (context) => ForTimeSettings(beepService: beepService),
-      ),
-      _TimerOptionData(
         title: l10n.emomTitle,
-        subtitle: l10n.emomCardDescription,
-        icon: Icons.schedule_rounded,
+        icon: Icons.timer_rounded,
         color: colorScheme.emomColor,
         builder: (context) => EmomSettings(beepService: beepService),
       ),
       _TimerOptionData(
+        title: l10n.forTimeTitle,
+        icon: Icons.timer_outlined,
+        color: colorScheme.forTimeColor,
+        builder: (context) => ForTimeSettings(beepService: beepService),
+      ),
+      _TimerOptionData(
         title: l10n.tabataTitle,
-        subtitle: l10n.tabataCardDescription,
-        icon: Icons.bolt_rounded,
+        icon: Icons.autorenew_rounded,
         color: colorScheme.tabataColor,
         builder: (context) => TabataSettings(beepService: beepService),
       ),
@@ -125,70 +132,41 @@ class _TimerModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () =>
             Navigator.push(context, MaterialPageRoute(builder: option.builder)),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(4),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 22),
           decoration: BoxDecoration(
-            color: const Color(0xFF1D222B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: option.color.withValues(alpha: 0.22)),
+            color: const Color(0xFF182A3E),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: option.color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(option.icon, size: 28, color: option.color),
-              ),
-              const Spacer(),
+              Icon(option.icon, size: 70, color: option.color),
+              const SizedBox(height: 34),
               Text(
-                option.title,
-                maxLines: 1,
+                option.title.toUpperCase(),
+                maxLines: 2,
+                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                option.subtitle,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.62),
-                  height: 1.25,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Text(
-                    l10n.configure,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: option.color,
-                      fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      offset: const Offset(2, 2),
                     ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: option.color,
-                    size: 20,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -201,14 +179,12 @@ class _TimerModeCard extends StatelessWidget {
 class _TimerOptionData {
   const _TimerOptionData({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.color,
     required this.builder,
   });
 
   final String title;
-  final String subtitle;
   final IconData icon;
   final Color color;
   final WidgetBuilder builder;

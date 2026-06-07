@@ -21,6 +21,7 @@ void main() async {
       initialLanguageCode: homePreferences.languageCode,
       homePreferences: homePreferences,
       recorderSettingsStore: RecorderSettingsStore(preferences),
+      liftStatsStore: LiftStatsStore(preferences),
     ),
   );
 }
@@ -33,6 +34,7 @@ class MyApp extends StatefulWidget {
     required this.initialLanguageCode,
     required this.homePreferences,
     required this.recorderSettingsStore,
+    required this.liftStatsStore,
     this.beepService = const NativeBeepService(),
     this.appInfoService = const AppInfoService(),
     this.videoOverlayService = const VideoOverlayService(),
@@ -44,6 +46,7 @@ class MyApp extends StatefulWidget {
   final String? initialLanguageCode;
   final HomePreferencesStore homePreferences;
   final RecorderSettingsStore recorderSettingsStore;
+  final LiftStatsStore liftStatsStore;
   final NativeBeepService beepService;
   final AppInfoService appInfoService;
   final VideoOverlayService videoOverlayService;
@@ -97,6 +100,7 @@ class _MyAppState extends State<MyApp> {
         languageCode: _languageCode,
         onSettingsChanged: _updateHomeSettings,
         recorderSettingsStore: widget.recorderSettingsStore,
+        liftStatsStore: widget.liftStatsStore,
         beepService: widget.beepService,
         appInfoService: widget.appInfoService,
         videoOverlayService: widget.videoOverlayService,

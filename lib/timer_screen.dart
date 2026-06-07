@@ -48,16 +48,12 @@ class TimerScreenState extends State<TimerScreen> {
   bool _isCountdownActive = true;
   bool _isPaused = false;
   WorkoutTimerPhase get _phase => _snapshot.phase;
-  int get _currentRound => _snapshot.currentRound;
   int get _phaseRemaining => _snapshot.phaseRemaining;
-  int get _overallElapsed => _snapshot.overallElapsed;
 
   bool get _hasRounds => (widget.rounds ?? 0) > 0;
   bool get _hasRest => (widget.interval ?? 0) > 0;
   bool get _isComplete => _snapshot.isComplete;
   double get _phaseProgress => _snapshot.phaseProgress;
-  double get _totalProgress => _snapshot.totalProgress;
-  int get _totalRemaining => _snapshot.totalRemaining;
 
   @override
   void initState() {
@@ -201,29 +197,6 @@ class TimerScreenState extends State<TimerScreen> {
     return _phase == WorkoutTimerPhase.rest ? l10n.rest : l10n.work;
   }
 
-  String? _nextUpLabel(BuildContext context) {
-    if (!_hasRounds || _isComplete) {
-      return null;
-    }
-
-    final l10n = AppLocalizations.of(context);
-    final totalRounds = widget.rounds ?? 0;
-
-    if (_phase == WorkoutTimerPhase.work) {
-      if (_hasRest && _currentRound < totalRounds) {
-        return l10n.nextRest(_formatTime(widget.interval!));
-      }
-      if (_currentRound < totalRounds) {
-        return l10n.nextRound(_currentRound + 1);
-      }
-    } else if (_phase == WorkoutTimerPhase.rest &&
-        _currentRound < totalRounds) {
-      return l10n.nextRound(_currentRound + 1);
-    }
-
-    return null;
-  }
-
   Color _phaseColor(ColorScheme scheme) {
     return _phase == WorkoutTimerPhase.rest
         ? scheme.tertiary
@@ -240,14 +213,13 @@ class TimerScreenState extends State<TimerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(l10n.timerTitle),
+        title: Text(widget.workoutName),
       ),
       body: Container(
         width: double.infinity,
@@ -255,16 +227,14 @@ class TimerScreenState extends State<TimerScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF101015), Color(0xFF181820)],
+            colors: [Color(0xFF061A25), Color(0xFF10182A)],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
             child: Column(
               children: [
-                _buildStatusCard(context),
-                const SizedBox(height: 16),
                 Expanded(
                   child: _isCountdownActive
                       ? _buildCountdown(context)
@@ -276,105 +246,6 @@ class TimerScreenState extends State<TimerScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context);
-    final nextUpLabel = _nextUpLabel(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _StatusChip(
-                  icon: _phase == WorkoutTimerPhase.rest
-                      ? Icons.self_improvement
-                      : Icons.fitness_center,
-                  label: l10n.workout,
-                  value: widget.workoutName,
-                  background: _phaseColor(scheme).withValues(alpha: 0.18),
-                  foreground: Colors.white,
-                ),
-              ),
-              if (_hasRounds) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatusChip(
-                    icon: Icons.repeat,
-                    label: l10n.round,
-                    value:
-                        '$_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: l10n.elapsed,
-                  value: _formatTime(_overallElapsed),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _MetricTile(
-                  label: l10n.remaining,
-                  value: _formatTime(_totalRemaining),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: _totalProgress,
-                    minHeight: 7,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _phaseColor(scheme),
-                    ),
-                  ),
-                ),
-              ),
-              if (nextUpLabel != null) ...[
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Text(
-                    nextUpLabel,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -446,69 +317,78 @@ class TimerScreenState extends State<TimerScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableHeight = math.max(
-          220.0,
-          constraints.maxHeight - (_hasRounds ? 44 : 0),
-        );
         final size = math
-            .min(constraints.maxWidth, availableHeight)
-            .clamp(220.0, 360.0)
+            .min(constraints.maxWidth, math.max(260.0, constraints.maxHeight))
+            .clamp(260.0, 390.0)
             .toDouble();
 
         return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 26),
+            decoration: BoxDecoration(
+              color: const Color(0xFF13283A).withValues(alpha: 0.56),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Center(
+              child: SizedBox(
                 width: size,
                 height: size,
-                child: CustomPaint(
-                  painter: ClockPainter(
-                    progress: _phaseProgress,
-                    color: color,
-                    strokeWidth: 12,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF141C2E),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 24,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
                   ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _phaseLabel(context),
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.68),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 320),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: Text(
-                            _formatTime(_phaseRemaining),
-                            key: ValueKey<int>(_phaseRemaining),
-                            style: theme.textTheme.displayMedium?.copyWith(
-                              color: Colors.white,
+                  child: CustomPaint(
+                    painter: ClockPainter(
+                      progress: _phaseProgress,
+                      color: color,
+                      trackColor: const Color(0xFF303746),
+                      strokeWidth: 13,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _phaseLabel(context),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.62),
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 320),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                            child: Text(
+                              _formatTime(_phaseRemaining),
+                              key: ValueKey<int>(_phaseRemaining),
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                color: Colors.white,
+                                fontSize: 52,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              if (_hasRounds) ...[
-                const SizedBox(height: 18),
-                Text(
-                  '${AppLocalizations.of(context).round} $_currentRound${widget.rounds != null ? ' / ${widget.rounds}' : ''}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         );
       },
@@ -530,16 +410,17 @@ class TimerScreenState extends State<TimerScreen> {
       foregroundColor: Colors.black,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     );
 
     final outlinedStyle = OutlinedButton.styleFrom(
       fixedSize: const Size.fromHeight(56),
       foregroundColor: Colors.white,
-      side: BorderSide(color: Colors.white.withValues(alpha: 0.32)),
+      backgroundColor: const Color(0xFF162338),
+      side: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
       padding: const EdgeInsets.symmetric(horizontal: 22),
       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     );
 
     if (_isComplete) {
@@ -586,112 +467,6 @@ class TimerScreenState extends State<TimerScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.background,
-    this.foreground,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? background;
-  final Color? foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = background ?? Colors.white.withValues(alpha: 0.12);
-    final fg = foreground ?? Colors.white;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: fg.withValues(alpha: 0.85), size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: fg.withValues(alpha: 0.75),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.65),
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
