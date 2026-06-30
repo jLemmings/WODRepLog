@@ -16,7 +16,7 @@ jobs:
     steps:
       # Checkout repository codebase
       - name: Checkout the code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Setup Java in the VM
       - uses: actions/setup-java@v5
