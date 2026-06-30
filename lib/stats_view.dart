@@ -154,7 +154,7 @@ class _StatsViewState extends State<StatsView> {
   }
 }
 
-class _LiftSelector extends StatelessWidget {
+class _LiftSelector extends StatefulWidget {
   const _LiftSelector({
     required this.liftNames,
     required this.selectedLift,
@@ -166,39 +166,143 @@ class _LiftSelector extends StatelessWidget {
   final ValueChanged<String> onSelected;
 
   @override
-  Widget build(BuildContext context) {
-    if (liftNames.isEmpty) return const SizedBox.shrink();
+  State<_LiftSelector> createState() => _LiftSelectorState();
+}
 
-    return DropdownButtonFormField<String>(
-      initialValue: selectedLift,
-      isExpanded: true,
-      menuMaxHeight: 360,
-      dropdownColor: const Color(0xFF182A3E),
-      iconEnabledColor: Colors.white,
-      decoration: InputDecoration(
-        labelText: 'Display lift',
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+class _LiftSelectorState extends State<_LiftSelector> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> _filteredLiftNames() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.liftNames;
+    return widget.liftNames
+        .where((lift) => lift.toLowerCase().contains(query))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.liftNames.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final filteredLiftNames = _filteredLiftNames();
+    final resultHeight = math.min(220.0, filteredLiftNames.length * 50.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const ValueKey('lift-search-field'),
+          controller: _searchController,
+          textInputAction: TextInputAction.search,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+          decoration: InputDecoration(
+            labelText: 'Search lifts',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _searchController.text.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: () {
+                      setState(_searchController.clear);
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                    tooltip: 'Clear search',
+                  ),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.06),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          onChanged: (_) => setState(() {}),
         ),
-      ),
-      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-        color: Colors.white,
-        fontWeight: FontWeight.w800,
-      ),
-      items: liftNames
-          .map(
-            (lift) => DropdownMenuItem<String>(
-              value: lift,
-              child: Text(lift, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 10),
+        if (filteredLiftNames.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              'No matching lifts',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.66),
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
-          .toList(),
-      onChanged: (lift) {
-        if (lift != null) onSelected(lift);
-      },
+        else
+          SizedBox(
+            height: resultHeight,
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              physics: const BouncingScrollPhysics(),
+              itemCount: filteredLiftNames.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final lift = filteredLiftNames[index];
+                final isSelected = lift == widget.selectedLift;
+                return Material(
+                  color: isSelected
+                      ? theme.colorScheme.forTimeColor
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      widget.onSelected(lift);
+                      FocusScope.of(context).unfocus();
+                    },
+                    child: SizedBox(
+                      height: 42,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                lift,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: isSelected
+                                      ? Colors.black
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(
+                                Icons.check_rounded,
+                                color: Colors.black,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }
